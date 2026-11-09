@@ -253,8 +253,9 @@
   /* ---------- Pull down to refresh (elastic) ---------- */
   const ptr = document.createElement('div');
   ptr.id = 'ptr';
-  // Accent loader: three dots in a triangle. They appear one by one as you pull, then orbit and breathe.
-  ptr.innerHTML = '<div class="dots3"><i></i><i></i><i></i></div>';
+  // Accent loader: three balls in a triangle, each with a soft reflection. They appear one by one as you pull,
+  // then hop corner to corner, squashing a little as they land.
+  ptr.innerHTML = '<div class="dots3">' + [0, 1, 2].map(() => '<i><s></s><b></b></i>').join('') + '</div>';
   document.body.appendChild(ptr);
   const tri = ptr.querySelector('.dots3'), dots3 = ptr.querySelectorAll('.dots3 i');
   const MAX = 150, TRIGGER = 66, HOLD = 58;
@@ -271,7 +272,6 @@
     ptr.style.transform = 'translate(-50%, ' + Math.min(d * 0.55, 34) + 'px) scale(' + (0.6 + 0.4 * p) + ')';
     if (!busy) {
       dots3.forEach((dt, i) => { const q = Math.max(0, Math.min(1, p * 3 - i)); dt.style.opacity = q; dt.style.scale = String(0.4 + 0.6 * q); });
-      tri.style.rotate = (p * 240) + 'deg';
       ptr.classList.toggle('ready', p >= 1);
     }
     // Large title stretches a little, like iOS.
@@ -303,7 +303,7 @@
       busy = true;
       App.haptic();
       setPull(HOLD, true);
-      ptr.classList.remove('ready'); ptr.classList.add('spin'); dots3.forEach((dt) => { dt.style.opacity = ''; dt.style.scale = ''; }); tri.style.rotate = '';
+      ptr.classList.remove('ready'); ptr.classList.add('spin'); dots3.forEach((dt) => { dt.style.opacity = ''; dt.style.scale = ''; });
       const t0 = Date.now();
       try { await Store.refresh(); } catch (err) {}
       await new Promise((r) => setTimeout(r, Math.max(0, 650 - (Date.now() - t0))));
