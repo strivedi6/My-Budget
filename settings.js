@@ -229,7 +229,7 @@
         '<label class="swatch ' + (custom ? 'on' : '') + '" style="background:' + (custom ? acc : 'conic-gradient(#f43,#fc3,#3c6,#39f,#a4f,#f43)') + '" title="Custom colour"><input type="color" id="acc-c" value="' + (custom ? acc : '#e0a21f') + '"></label></div></div></section>' +
         '<section class="card c6"><div class="field" style="margin-bottom:0"><span>Loading animation (this device)</span><div class="ld-grid">' +
         App.LOADERS.map((x) => '<button class="ld-tile ' + ((App.prefs.loader || 'goo') === x[0] ? 'on' : '') + '" data-ld="' + x[0] + '">' + App.loader(true, x[0]) + '<span>' + h(x[1]) + '</span></button>').join('') +
-        '</div><small>Shown when you pull down to refresh and while your code is checked.</small></div></section></div>';
+        '</div><small>Shown when you pull down to refresh.</small></div></section></div>';
     },
     mount(v) {
       v.querySelectorAll('#ap [data-v]').forEach((b) => (b.onclick = () => { App.prefs.appearance = b.dataset.v; App.savePrefs(); App.applyTheme(); App.renderView(); }));

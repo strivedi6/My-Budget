@@ -371,7 +371,7 @@
       '<div class="avatar-xl"><span class="ripple"></span><span class="ripple"></span><span class="ripple"></span>' + (Store.hasData ? App.avatarHtml() : '<div class="avatar" style="background:var(--accent)">' + icon('wallet', 34) + '</div>') + '</div>' +
       '<h1>' + h(title) + '</h1><p>' + sub + '</p>' +
       (notConfigured ? '<div class="notice warn" style="margin-top:20px"><b>One step left.</b> Paste your Apps Script <b>/exec</b> link into <b>config.js</b> (apiUrl), then upload the folder again. See SETUP-GUIDE.md, step 3.</div>' :
-      '<div class="pin-stage"><div class="pin-dots" id="dots">' + '<i></i>'.repeat(6) + '</div><div class="pin-load">' + App.loader(true) + '</div></div><div class="pin-msg" id="pinmsg"></div>' +
+      '<div class="pin-stage"><div class="pin-dots" id="dots">' + [0, 1, 2, 3, 4, 5].map((i) => '<i style="--i:' + i + '"></i>').join('') + '</div></div><div class="pin-msg" id="pinmsg"></div>' +
       '<div class="keypad">' + [[1, ''], [2, 'ABC'], [3, 'DEF'], [4, 'GHI'], [5, 'JKL'], [6, 'MNO'], [7, 'PQRS'], [8, 'TUV'], [9, 'WXYZ']].map((n) => '<button data-n="' + n[0] + '">' + n[0] + '<small>' + (n[1] || '&nbsp;') + '</small></button>').join('') +
       '<button class="fn" data-fn="help">' + (mode === 'unlock' ? 'Sign out' : '') + '</button><button data-n="0">0<small>&nbsp;</small></button><button class="fn" data-fn="del" aria-label="Delete">Delete</button></div>') +
       '</div></div>';
@@ -382,6 +382,46 @@
     const draw = () => dots.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i < pin.length));
     const say = (t, tone) => { msg.textContent = t || ''; msg.className = 'pin-msg' + (tone ? ' ' + tone : ''); };
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* The six code dots are the animation: they form a turning ring while the code is checked,
+       fly back into their row if it's wrong, or merge into one circle that opens into the app. */
+    const ring = (() => {
+      const ds = Array.from(dots.children), R = 30;
+      const rowX = (i) => (i - 2.5) * (ds[1].offsetLeft - ds[0].offsetLeft);
+      const freeze = () => {
+        const ang = parseFloat(getComputedStyle(dots).rotate) || 0;
+        dots.classList.remove('spin'); dots.style.transition = 'none'; dots.style.rotate = ang + 'deg';
+        ds.forEach((d) => { d.style.scale = ''; });
+        void dots.offsetWidth;
+        return ((ang % 360) + 360) % 360;
+      };
+      return {
+        gather() {
+          dots.style.transition = 'none'; dots.style.rotate = ''; void dots.offsetWidth; dots.style.transition = '';
+          ds.forEach((d, i) => {
+            const a = (-90 + i * 60) * Math.PI / 180;
+            d.style.transition = 'translate .65s cubic-bezier(.34, 1.3, .64, 1) ' + i * 45 + 'ms, background .2s, opacity .3s';
+            d.style.translate = (R * Math.cos(a) - rowX(i)).toFixed(1) + 'px ' + (R * Math.sin(a)).toFixed(1) + 'px';
+          });
+          setTimeout(() => { if (lockEl.classList.contains('checking') && !lockEl.classList.contains('leaving')) dots.classList.add('spin'); }, 520);
+        },
+        back() {
+          const ang = freeze();
+          dots.style.transition = 'rotate .6s cubic-bezier(.34, 1.2, .64, 1)';
+          dots.style.rotate = (ang > 180 ? 360 : 0) + 'deg';
+          ds.forEach((d, i) => { d.style.transition = 'translate .6s cubic-bezier(.34, 1.25, .64, 1) ' + (5 - i) * 35 + 'ms, background .2s'; d.style.translate = ''; });
+          return wait(still ? 0 : 720).then(() => { dots.style.transition = 'none'; dots.style.rotate = ''; void dots.offsetWidth; dots.style.transition = ''; });
+        },
+        async merge() {
+          freeze();
+          ds.forEach((d, i) => { d.style.transition = 'translate .42s cubic-bezier(.55, 0, .3, 1) ' + i * 25 + 'ms'; d.style.translate = (-rowX(i)).toFixed(1) + 'px 0px'; });
+          await wait(still ? 0 : 520);
+          ds.forEach((d) => { d.style.transition = 'scale .42s cubic-bezier(.34, 1.56, .64, 1)'; d.style.scale = '2.4'; });
+          await wait(still ? 0 : 380);
+        }
+      };
+    })();
 
     /* Wrong-code limit, like iPhone: 3 tries, then waits that grow (1, 5, 15, 60 minutes).
        Kept on this device so closing the app doesn't reset it. */
@@ -392,22 +432,25 @@
     const startWait = () => {
       const lo = getLO();
       if (!(lo.until > Date.now())) return false;
-      lockEl.classList.add('checking', 'waiting');
+      if (!lockEl.classList.contains('checking')) { lockEl.classList.add('checking'); ring.gather(); }
+      lockEl.classList.add('waiting');
       clearInterval(timer);
       const tick = () => {
         const left = lo.until - Date.now();
         if (!lockEl.isConnected) return clearInterval(timer);
-        if (left <= 0) { clearInterval(timer); lockEl.classList.remove('checking', 'waiting'); say(''); return; }
+        if (left <= 0) { clearInterval(timer); say(''); ring.back().then(() => lockEl.classList.remove('checking', 'waiting')); return; }
         msg.innerHTML = '<span class="wait-t">Too many attempts</span><b class="wait-c num">Try again in ' + mmss(left) + '</b>';
         msg.className = 'pin-msg wait';
       };
       tick(); timer = setInterval(tick, 250);
       return true;
     };
-    const wrong = (text) => {
+    const wrong = async (text) => {
       const lo = getLO(); lo.fails = (lo.fails || 0) + 1;
       if (lo.fails >= FREE) lo.until = Date.now() + WAITS[Math.min(lo.fails - FREE, WAITS.length - 1)] * 60000;
       setLO(lo);
+      if (lo.until > Date.now()) { pin = ''; draw(); if (navigator.vibrate) navigator.vibrate(80); startWait(); return; }
+      await ring.back();
       pin = ''; draw();
       lockEl.classList.remove('checking');
       dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
@@ -416,44 +459,53 @@
       const left = FREE - lo.fails;
       say(text || ('Wrong code. ' + left + (left === 1 ? ' try' : ' tries') + ' left.'), 'neg');
     };
-    const problem = (t) => { pin = ''; draw(); lockEl.classList.remove('checking'); say(t, 'neg'); };
+    const problem = async (t) => { await ring.back(); pin = ''; draw(); lockEl.classList.remove('checking'); say(t, 'neg'); };
 
-    // Correct code: the lock screen zooms towards you and the app zooms in behind it.
-    const enter = (fresh) => {
+    // Correct code: the dots merge into one circle, then the app opens out of that circle
+    // while the sign-in screen zooms in towards it.
+    const enter = async (fresh) => {
       setLO({});
       clearInterval(timer);
+      await ring.merge();
+      const r = dots.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       document.body.appendChild(lockEl);
       lockEl.classList.add('leaving');
       App.unlocked(fresh);
-      const shell = document.querySelector('#app .shell') || document.getElementById('app');
-      if (shell.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        shell.animate([{ transform: 'scale(.9)', opacity: 0, filter: 'blur(8px)' }, { transform: 'none', opacity: 1, filter: 'blur(0)' }], { duration: 620, easing: 'cubic-bezier(.22, .8, .22, 1)' });
-        lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.35)', opacity: 0 }], { duration: 480, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' }).onfinish = () => lockEl.remove();
-      } else lockEl.remove();
+      window.scrollTo(0, 0);
+      const appEl = document.getElementById('app');
+      if (still || !appEl.animate) return lockEl.remove();
+      const far = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)) + 20;
+      appEl.classList.add('revealing');
+      const at = ' at ' + cx.toFixed(0) + 'px ' + cy.toFixed(0) + 'px)';
+      lockEl.style.transformOrigin = cx + 'px ' + cy + 'px';
+      lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 0 }], { duration: 760, easing: 'cubic-bezier(.6, 0, .3, 1)', fill: 'forwards' });
+      appEl.animate([{ clipPath: 'circle(15px' + at, opacity: .4 }, { clipPath: 'circle(' + far.toFixed(0) + 'px' + at, opacity: 1 }], { duration: 760, easing: 'cubic-bezier(.65, 0, .25, 1)' })
+        .onfinish = () => { appEl.classList.remove('revealing'); lockEl.remove(); };
     };
 
     const submit = async () => {
       if (startWait()) { pin = ''; draw(); return; }
       busy = true;
-      lockEl.classList.add('checking');   // keypad slides away, loader shows
+      lockEl.classList.add('checking');   // keypad slides away, the code dots form a turning ring
+      ring.gather();
       say(mode === 'unlock' ? '' : 'Checking with your Google Sheet…');
       const t0 = Date.now(), minShow = () => wait(Math.max(0, 1100 - (Date.now() - t0)));
       try {
         if (mode === 'unlock' && Store.pinHash) {
           const ok = await Store.checkPin(pin);
           await minShow();
-          if (ok) return enter(false);
-          if (!navigator.onLine) return wrong();
+          if (ok) return await enter(false);
+          if (!navigator.onLine) return await wrong();
         }
         await Store.login(pin);
         await minShow();
-        enter(true);
+        await enter(true);
       } catch (e) {
         await minShow();
-        if (e.code === 'NET') problem('No connection. Check your internet and try again.');
-        else if (e.code === 'BAD_PIN') wrong();
+        if (e.code === 'NET') await problem('No connection. Check your internet and try again.');
+        else if (e.code === 'BAD_PIN') await wrong();
         else if (e.code === 'LOCKED') { const lo = getLO(); lo.until = Date.now() + 15 * 60000; setLO(lo); pin = ''; draw(); startWait(); }
-        else problem(e.message);
+        else await problem(e.message);
       } finally { busy = false; }
     };
     const press = (n) => { if (busy || lockEl.classList.contains('checking')) return; App.haptic(); if (pin.length < 6) { pin += n; draw(); if (!msg.classList.contains('wait')) say(''); } if (pin.length === 6) setTimeout(submit, 160); };
