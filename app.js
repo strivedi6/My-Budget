@@ -332,8 +332,9 @@
     const notConfigured = !Store.configured();
     const title = mode === 'unlock' ? (name ? 'Hi, ' + name : 'Welcome back') : 'Sign in';
     const sub = mode === 'unlock' ? 'Enter your 6-digit code' : 'Enter your 6-digit code to load your budget';
-    app.innerHTML = '<div class="lock"><div class="lock-card">' +
-      '<div class="avatar-xl">' + (Store.hasData ? App.avatarHtml() : '<div class="avatar" style="background:var(--accent)">' + icon('wallet', 34) + '</div>') + '</div>' +
+    document.documentElement.classList.add('is-locked');
+    app.innerHTML = '<div class="lock"><div class="lock-bg"><i></i><i></i><i></i></div><div class="lock-card">' +
+      '<div class="avatar-xl"><span class="ripple"></span><span class="ripple"></span><span class="ripple"></span>' + (Store.hasData ? App.avatarHtml() : '<div class="avatar" style="background:var(--accent)">' + icon('wallet', 34) + '</div>') + '</div>' +
       '<h1>' + h(title) + '</h1><p>' + sub + '</p>' +
       (notConfigured ? '<div class="notice warn" style="margin-top:20px"><b>One step left.</b> Paste your Apps Script <b>/exec</b> link into <b>config.js</b> (apiUrl), then upload the folder again. See SETUP-GUIDE.md, step 3.</div>' :
       '<div class="pin-dots" id="dots">' + '<i></i>'.repeat(6) + '</div><div class="pin-msg" id="pinmsg"></div>' +
@@ -358,7 +359,7 @@
         fail(e.code === 'NET' ? 'No connection. Check your internet and try again.' : e.message);
       } finally { busy = false; }
     };
-    const press = (n) => { if (busy) return; if (pin.length < 6) { pin += n; draw(); msg.textContent = ''; } if (pin.length === 6) setTimeout(submit, 120); };
+    const press = (n) => { if (busy) return; App.haptic(); if (pin.length < 6) { pin += n; draw(); msg.textContent = ''; } if (pin.length === 6) setTimeout(submit, 120); };
     const del = () => { if (!busy) { pin = pin.slice(0, -1); draw(); } };
     app.querySelectorAll('[data-n]').forEach((b) => (b.onclick = () => press(b.dataset.n)));
     app.querySelector('[data-fn="del"]').onclick = del;
@@ -373,6 +374,7 @@
   document.addEventListener('keydown', (e) => App._keyHandler && App._keyHandler(e));
 
   App.unlocked = (fresh) => {
+    document.documentElement.classList.remove('is-locked');
     App.ui.locked = false;
     App.lastActive = Date.now();
     App.applyTheme();

@@ -104,7 +104,7 @@ body.scrolled .navbar .nb-title { opacity: 1; transform: none; }
 .tab { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 600; letter-spacing: .1px; color: var(--text); border-radius: 999px; }
 .tab .ic { width: 25px; height: 25px; }
 .tab.on { color: var(--accent); }
-.tab-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 4); border-radius: 999px; background: var(--fill-3); transform-origin: center; will-change: transform; }
+.tab-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 4); border-radius: 999px; background: var(--fill-3); will-change: transform; transition: transform .55s cubic-bezier(.22, .8, .22, 1); }
 .fab { pointer-events: auto; width: var(--tab-h); height: var(--tab-h); border-radius: 50%; display: grid; place-items: center; color: var(--accent); }
 .fab .ic { width: 28px; height: 28px; stroke-width: 2.3; }
 
@@ -257,8 +257,8 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* ---------- Sheets (iOS 27 floating sheet) ---------- */
 .sheet-back { position: fixed; inset: 0; z-index: 60; background: var(--dim); opacity: 0; transition: opacity .35s; }
 .sheet-back.in { opacity: 1; }
-.sheet { position: fixed; z-index: 61; left: 8px; right: 8px; bottom: calc(8px + var(--safe-b) * .4); max-width: 704px; margin: 0 auto; max-height: calc(100dvh - var(--safe-t) - 58px); display: flex; flex-direction: column;
-  background: var(--elev); border-radius: 38px; box-shadow: 0 20px 60px rgba(0, 0, 0, .25); transform: translateY(110%); transition: transform .5s var(--ease); overflow: hidden; }
+.sheet { position: fixed; z-index: 61; left: 0; right: 0; bottom: 0; max-width: 720px; margin: 0 auto; padding-bottom: var(--safe-b); max-height: calc(100dvh - var(--safe-t) - 58px); display: flex; flex-direction: column;
+  background: var(--elev); border-radius: 38px 38px 0 0; box-shadow: 0 -10px 40px rgba(0, 0, 0, .18); transform: translateY(110%); transition: transform .5s var(--ease); overflow: hidden; }
 :root[data-theme="dark"] .sheet { background: #1C1C1E; }
 .sheet.in { transform: none; }
 .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: var(--fill); margin: 6px auto 0; flex-shrink: 0; }
@@ -405,3 +405,23 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .day-h { padding: 30px 16px 10px; }
 .budget-row { padding: 14px 0; }
 .menu .li { min-height: 56px; }
+
+/* ---------- Sign-in screen: fixed, with drifting light and ripples ---------- */
+html.is-locked, html.is-locked body { overflow: hidden; height: 100%; overscroll-behavior: none; }
+html.is-locked body { position: fixed; inset: 0; touch-action: none; }
+.lock { position: fixed; inset: 0; min-height: 0; height: 100dvh; overflow: hidden; background: var(--bg); touch-action: none; }
+.lock-card { position: relative; z-index: 1; }
+.lock-bg { position: absolute; inset: -20%; pointer-events: none; filter: blur(60px); opacity: .9; }
+.lock-bg i { position: absolute; border-radius: 50%; display: block; }
+.lock-bg i:nth-child(1) { width: 70vmax; height: 70vmax; left: 5%; top: -10%; background: color-mix(in srgb, var(--accent) 38%, transparent); animation: drift1 18s ease-in-out infinite alternate; }
+.lock-bg i:nth-child(2) { width: 55vmax; height: 55vmax; right: -5%; top: 10%; background: color-mix(in srgb, var(--p2) 26%, transparent); animation: drift2 22s ease-in-out infinite alternate; }
+.lock-bg i:nth-child(3) { width: 50vmax; height: 50vmax; left: 20%; bottom: -15%; background: color-mix(in srgb, var(--indigo) 18%, transparent); animation: drift3 26s ease-in-out infinite alternate; }
+@keyframes drift1 { to { transform: translate(18vw, 14vh) scale(1.15); } }
+@keyframes drift2 { to { transform: translate(-22vw, 20vh) scale(.9); } }
+@keyframes drift3 { to { transform: translate(10vw, -24vh) scale(1.1); } }
+.lock .avatar-xl { position: relative; }
+.lock .avatar-xl .avatar { position: relative; z-index: 1; box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .35); }
+.ripple { position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 8%, transparent); animation: ripple 3.6s cubic-bezier(.2, .6, .3, 1) infinite; pointer-events: none; }
+.ripple:nth-child(2) { animation-delay: 1.2s; } .ripple:nth-child(3) { animation-delay: 2.4s; }
+@keyframes ripple { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .lock-bg i, .ripple { animation: none !important; } .ripple { display: none; } }

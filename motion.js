@@ -19,23 +19,36 @@
     tb.querySelectorAll('.tab').forEach((a) => a.classList.toggle('on', a.dataset.tab === App.ui.route));
     const pill = tb.querySelector('.tab-pill');
     const prev = App._pillIdx;
-    const end = 'translateX(' + (i * 100) + '%)';
+    if (prev === undefined) { pill.style.transition = 'none'; requestAnimationFrame(() => { pill.style.transition = ''; }); }
+    pill.style.transform = 'translateX(' + (i * 100) + '%)';
     if (prev !== undefined && prev !== i) {
-      const mid = ((prev + i) / 2) * 100;
-      const stretch = 1 + Math.min(0.5, 0.18 * Math.abs(i - prev));
-      anim(pill, [
-        { transform: 'translateX(' + (prev * 100) + '%) scale(1, 1)' },
-        { transform: 'translateX(' + mid + '%) scale(' + stretch + ', .86)', offset: 0.45 },
-        { transform: end + ' scale(.96, 1.04)', offset: 0.8 },
-        { transform: end + ' scale(1, 1)' }
-      ], { duration: 560, easing: SETTLE });
-      const icon = tb.querySelector('.tab.on .ic');
-      anim(icon, [{ transform: 'scale(1)' }, { transform: 'scale(1.22) translateY(-1px)', offset: 0.4 }, { transform: 'scale(1)' }], { duration: 480, easing: SPRING });
+      const ic = tb.querySelector('.tab.on .ic');
+      anim(ic, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)', offset: 0.45 }, { transform: 'scale(1)' }], { duration: 520, easing: SETTLE });
     }
-    pill.style.transform = end;
     App._pillIdx = i;
     App.renderSync();
   };
+
+  /* ---------- Haptics ----------
+   * iPhone Safari has no vibration API; tapping a hidden iOS switch gives the system "tick" (iOS 18+).
+   * Other phones use navigator.vibrate. */
+  let hapticLabel = null;
+  App.haptic = () => {
+    try {
+      if (navigator.vibrate && !/iPhone|iPad|iPod/.test(navigator.userAgent)) { navigator.vibrate(8); return; }
+      if (!hapticLabel) {
+        const id = 'haptic-switch';
+        const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = id; inp.setAttribute('switch', '');
+        hapticLabel = document.createElement('label'); hapticLabel.htmlFor = id;
+        const box = document.createElement('div'); box.setAttribute('aria-hidden', 'true');
+        box.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;left:-10px;top:-10px';
+        box.appendChild(inp); box.appendChild(hapticLabel); document.body.appendChild(box);
+      }
+      hapticLabel.click();
+    } catch (e) {}
+  };
+  const HAPTIC = '.btn, .circle, .fab, .tab, .chip, .seg button, .cat-opt, .monthsw button, .icon-btn, .swatch, .icon-grid button, .menu .li, [data-spend], .alert .btn, .keypad .fn';
+  document.addEventListener('click', (e) => { if (e.target.closest(HAPTIC) && !e.target.closest('label[for="haptic-switch"]')) App.haptic(); }, true);
 
   /* ---------- Route & month changes drive the screen transition ---------- */
   const readRoute = App.readRoute;
@@ -183,7 +196,7 @@
     startY = null; pulling = false;
     if (dist >= TRIGGER) {
       busy = true;
-      if (navigator.vibrate) navigator.vibrate(10);
+      App.haptic();
       setPull(HOLD, true);
       ptr.classList.add('spin'); spokes.forEach((s) => { s.style.opacity = ''; });
       const t0 = Date.now();
