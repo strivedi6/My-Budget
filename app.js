@@ -40,8 +40,39 @@
   App.uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   App.pct = (a, b) => (b > 0 ? a / b * 100 : 0);
   App.initial = () => (App.name1()[0] || 'M').toUpperCase();
-  /* Three-dot accent loader (animated by .tri3.go in styles.css). */
-  App.loader = (go) => '<span class="tri3' + (go ? ' go' : '') + '" aria-hidden="true"><span><i><b></b></i><i><b></b></i><i><b></b></i></span></span>';
+  /* Loading animations (pull-to-refresh and sign-in). Pick one in Settings › Appearance.
+     Each is plain markup animated by CSS in styles.css; adding .go starts it. All use the accent colour. */
+  App.LOADERS = [['goo', 'Goo'], ['turn', 'Turning dots'], ['hop', 'Hopscotch'], ['halo', 'Halo'], ['ripple', 'Ripple'],
+    ['bars', 'Equaliser'], ['wave', 'Wave'], ['helix', 'Helix'], ['morph', 'Morph'], ['comet', 'Comet']];
+  const rep = (n, f) => Array.from({ length: n }, (_, i) => f(i)).join('');
+  const ensureGoo = () => {
+    if (document.getElementById('mb-goo')) return;
+    const d = document.createElement('div');
+    d.innerHTML = '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>' +
+      '<filter id="mb-goo" x="-60%" y="-60%" width="220%" height="240%" color-interpolation-filters="sRGB">' +
+      '<feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/>' +
+      '<feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="g"/>' +
+      '<feOffset in="g" dy="7" result="o"/><feGaussianBlur in="o" stdDeviation="2.2" result="ob"/>' +
+      '<feComponentTransfer in="ob" result="sh"><feFuncA type="linear" slope=".28"/></feComponentTransfer>' +
+      '<feMerge><feMergeNode in="sh"/><feMergeNode in="g"/></feMerge></filter></defs></svg>';
+    document.body.appendChild(d.firstChild);
+  };
+  const LOADER_HTML = {
+    goo: () => { ensureGoo(); return '<svg viewBox="-32 -32 64 64"><g filter="url(#mb-goo)"><g class="blob"><g class="orbit">' + [0, 120, 240].map((a, i) => '<g class="arm" style="--a:' + a + 'deg"><circle class="ball b' + i + '" r="5.5"/></g>').join('') + '</g></g></g></svg>'; },
+    turn: () => '<span>' + rep(3, () => '<i><b></b></i>') + '</span>',
+    hop: () => rep(3, () => '<i><s></s><b></b></i>'),
+    halo: () => '<svg viewBox="0 0 32 32"><circle class="trk" cx="16" cy="16" r="11"/><g class="rot"><circle class="arc" cx="16" cy="16" r="11"/></g><circle class="core" cx="16" cy="16" r="3.2"/></svg>',
+    ripple: () => rep(3, () => '<i></i>') + '<b></b>',
+    bars: () => rep(5, () => '<i></i>'),
+    wave: () => rep(5, () => '<i></i>'),
+    helix: () => rep(7, () => '<i><b></b><b></b></i>'),
+    morph: () => '<i></i>',
+    comet: () => '<span>' + rep(9, (k) => '<i style="--a:' + (-k * 15) + 'deg;--s:' + (0.52 - k * 0.04).toFixed(2) + 'em;--o:' + (1 - k * 0.1).toFixed(2) + '"></i>') + '</span>'
+  };
+  App.loader = (go, kind) => {
+    kind = LOADER_HTML[kind] ? kind : (LOADER_HTML[App.prefs && App.prefs.loader] ? App.prefs.loader : 'goo');
+    return '<span class="ld ld-' + kind + (kind === 'turn' ? ' tri3' : '') + (go ? ' go' : '') + '" aria-hidden="true">' + LOADER_HTML[kind]() + '</span>';
+  };
 
   App.avatarHtml = () => {
     const a = App.S().avatar;

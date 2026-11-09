@@ -254,9 +254,10 @@
   const ptr = document.createElement('div');
   ptr.id = 'ptr';
   // Accent loader (three turning dots). They appear one by one as you pull, then turn while refreshing.
-  ptr.innerHTML = App.loader();
   document.body.appendChild(ptr);
-  const tri = ptr.querySelector('.tri3'), dots3 = ptr.querySelectorAll('.tri3 b');
+  let tri = null;
+  App.refreshLoader = () => { ptr.innerHTML = App.loader(false); tri = ptr.querySelector('.ld'); };
+  App.refreshLoader();
   const MAX = 150, TRIGGER = 66, HOLD = 58;
   const rubber = (dy) => MAX * (1 - Math.exp(-dy / 270));
   let startY = null, pulling = false, dist = 0, busy = false;
@@ -270,7 +271,7 @@
     ptr.style.opacity = d > 4 ? Math.min(1, p * 1.4) : 0;
     ptr.style.transform = 'translate(-50%, ' + Math.min(d * 0.55, 34) + 'px) scale(' + (0.6 + 0.4 * p) + ')';
     if (!busy) {
-      dots3.forEach((dt, i) => { const q = Math.max(0, Math.min(1, p * 3 - i)); dt.style.opacity = q; dt.style.scale = String(0.4 + 0.6 * q); });
+      tri.style.rotate = Math.round(p * 220) + 'deg';
       ptr.classList.toggle('ready', p >= 1);
     }
     // Large title stretches a little, like iOS.
@@ -302,7 +303,7 @@
       busy = true;
       App.haptic();
       setPull(HOLD, true);
-      ptr.classList.remove('ready'); ptr.classList.add('spin'); tri.classList.add('go'); dots3.forEach((dt) => { dt.style.opacity = ''; dt.style.scale = ''; });
+      ptr.classList.remove('ready'); ptr.classList.add('spin'); tri.style.rotate = ''; tri.classList.add('go');
       const t0 = Date.now();
       try { await Store.refresh(); } catch (err) {}
       await new Promise((r) => setTimeout(r, Math.max(0, 650 - (Date.now() - t0))));
