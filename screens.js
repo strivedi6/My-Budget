@@ -411,7 +411,7 @@
       render() {
         const c = App.ui.cmp, key = App.ui.month;
         const modes = [['prev', 'Last month'], ['lastyear', 'Same month last year'], ['custom', 'Pick a month'], ['yearly', 'Year vs year']];
-        const seg = '<div class="chips" style="margin-bottom:14px">' + modes.map((x) => '<button class="chip ' + (c.mode === x[0] ? 'on' : '') + '" data-cm="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
+        const seg = '<div class="chips" id="cmp-modes" style="margin-bottom:14px">' + modes.map((x) => '<button class="chip ' + (c.mode === x[0] ? 'on' : '') + '" data-cm="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
         if (c.mode === 'yearly') return seg + yearly();
         const other = c.mode === 'prev' ? Calc.addMonths(key, -1) : c.mode === 'lastyear' ? Calc.addMonths(key, -12) : (c.custom || Calc.addMonths(key, -1));
         const A = App.calc(key), B = App.calc(other);

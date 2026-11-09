@@ -32,23 +32,38 @@
   /* ---------- Haptics ----------
    * iPhone Safari has no vibration API; tapping a hidden iOS switch gives the system "tick" (iOS 18+).
    * Other phones use navigator.vibrate. */
-  let hapticLabel = null;
-  App.haptic = () => {
-    try {
-      if (navigator.vibrate && !/iPhone|iPad|iPod/.test(navigator.userAgent)) { navigator.vibrate(8); return; }
-      if (!hapticLabel) {
-        const id = 'haptic-switch';
-        const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = id; inp.setAttribute('switch', '');
-        hapticLabel = document.createElement('label'); hapticLabel.htmlFor = id;
-        const box = document.createElement('div'); box.setAttribute('aria-hidden', 'true');
-        box.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;overflow:hidden;left:-10px;top:-10px';
-        box.appendChild(inp); box.appendChild(hapticLabel); document.body.appendChild(box);
-      }
-      hapticLabel.click();
-    } catch (e) {}
-  };
-  const HAPTIC = '.btn, .circle, .fab, .tab, .chip, .seg button, .cat-opt, .monthsw button, .icon-btn, .swatch, .icon-grid button, .menu .li, [data-spend], .alert .btn, .keypad .fn';
-  document.addEventListener('click', (e) => { if (e.target.closest(HAPTIC) && !e.target.closest('label[for="haptic-switch"]')) App.haptic(); }, true);
+  // Newer iOS only gives the tick when the finger itself lands on a switch, so every tappable control
+  // gets an invisible switch laid over it. The tap still reaches the control as a normal click.
+  const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  App.haptic = () => { try { if (!IOS && navigator.vibrate) navigator.vibrate(8); } catch (e) {} };
+  const HAPTIC = '.btn, .circle, .fab, .tab, .chip, .seg button, .cat-opt, .monthsw button, .icon-btn, button.swatch, .icon-grid button, .menu .li, [data-spend], .keypad button, .keypad .fn';
+  function armHaptics(root) {
+    if (!IOS) return;
+    (root.matches && root.matches(HAPTIC) ? [root] : []).concat(Array.from(root.querySelectorAll ? root.querySelectorAll(HAPTIC) : [])).forEach((el) => {
+      if (el.tagName === 'LABEL' || el.tagName === 'INPUT' || el.querySelector(':scope > [data-haptic]')) return;
+      const lb = document.createElement('label');
+      lb.setAttribute('data-haptic', ''); lb.setAttribute('aria-hidden', 'true');
+      const sw = document.createElement('input'); sw.type = 'checkbox'; sw.setAttribute('switch', ''); sw.tabIndex = -1;
+      sw.addEventListener('click', (e) => e.stopPropagation());
+      lb.appendChild(sw);
+      if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+      el.appendChild(lb);
+    });
+  }
+  if (IOS) {
+    armHaptics(document.body);
+    let queued = [];
+    new MutationObserver((list) => {
+      list.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1 && !n.hasAttribute('data-haptic')) queued.push(n); }));
+      if (queued.length) { const q = queued; queued = []; q.forEach((n) => { if (n.isConnected) armHaptics(n); }); }
+    }).observe(document.body, { childList: true, subtree: true });
+    // A tap on the overlay is a tap on a label, which would stop a link from opening, so follow links here.
+    document.addEventListener('click', (e) => {
+      const lb = e.target.closest && e.target.closest('[data-haptic]'); if (!lb) return;
+      const a = lb.parentElement && lb.parentElement.closest('a[href]');
+      if (a && !e.defaultPrevented) { const href = a.getAttribute('href'); if (href.charAt(0) === '#') location.hash = href; else location.href = a.href; }
+    });
+  }
 
   /* ---------- Route & month changes drive the screen transition ---------- */
   const readRoute = App.readRoute;
@@ -72,7 +87,10 @@
     morphSegs(view);
     const kind = App._enter; App._enter = '';
     if (kind) enter(view, kind);
+    countUp(view, kind === 'tab' || !App._counted);
+    App._counted = true;
     observeReveal(view);
+    follow.reset();
   };
 
   function enter(view, kind) {
@@ -94,40 +112,38 @@
     });
   }
 
-  /* ---------- Segmented controls: thumb slides to the new choice ---------- */
+  /* ---------- Segmented controls & filter chips: the selection glides like the tab bar ---------- */
+  const GLIDE = 'cubic-bezier(.22, .8, .22, 1)', GLIDE_MS = 550;
   App._segPos = App._segPos || {};
+  const SLIDERS = '.seg, .chips';
+  const rectIn = (b) => ({ left: b.offsetLeft, top: b.offsetTop, width: b.offsetWidth, height: b.offsetHeight });
+  function glide(box, on, from) {
+    const to = rectIn(on);
+    if (!from || reduce || (Math.abs(from.left - to.left) < 1 && Math.abs(from.top - to.top) < 1)) return;
+    box.querySelectorAll(':scope > .seg-ghost').forEach((g) => g.remove());
+    const chip = box.classList.contains('chips');
+    const ghost = document.createElement('span'); ghost.className = 'seg-ghost' + (chip ? ' chip-ghost' : '');
+    const px = (r) => ({ left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    Object.assign(ghost.style, px(to));
+    box.appendChild(ghost); on.classList.add('seg-hold');
+    const a = ghost.animate([px(from), px(to)], { duration: GLIDE_MS, easing: GLIDE });
+    a.onfinish = a.oncancel = () => { ghost.remove(); on.classList.remove('seg-hold'); };
+  }
   function morphSegs(root) {
-    root.querySelectorAll('.seg[id]').forEach((seg) => {
-      const on = seg.querySelector('button.on'); if (!on) return;
-      const to = { left: on.offsetLeft, width: on.offsetWidth };
-      const from = App._segPos[seg.id];
-      App._segPos[seg.id] = to;
-      if (!from || (from.left === to.left && from.width === to.width) || reduce) return;
-      const ghost = document.createElement('span'); ghost.className = 'seg-ghost';
-      ghost.style.left = to.left + 'px'; ghost.style.width = to.width + 'px';
-      seg.appendChild(ghost); on.classList.add('seg-hold');
-      const dx = from.left - to.left, sx = from.width / to.width;
-      const a = ghost.animate([
-        { transform: 'translateX(' + dx + 'px) scaleX(' + sx + ')' },
-        { transform: 'translateX(' + dx * 0.35 + 'px) scaleX(' + (sx * 0.5 + 0.58) + ') scaleY(.9)', offset: 0.5 },
-        { transform: 'none' }
-      ], { duration: 420, easing: SETTLE });
-      a.onfinish = () => { ghost.remove(); on.classList.remove('seg-hold'); };
+    root.querySelectorAll('.seg[id], .chips[id]').forEach((box) => {
+      const on = box.querySelector(':scope > .on'); if (!on) return;
+      const key = App.ui.route + ':' + box.id, from = App._segPos[key];
+      App._segPos[key] = rectIn(on);
+      glide(box, on, from);
     });
   }
-  // Segments inside sheets (no re-render): slide on click.
+  // Controls that don't re-render the screen (inside sheets): glide on tap.
   document.addEventListener('click', (e) => {
-    const b = e.target.closest('.sheet .seg button'); if (!b) return;
-    const seg = b.parentElement, prev = seg.querySelector('button.on');
-    if (!prev || prev === b || reduce) return;
-    requestAnimationFrame(() => {
-      if (!b.classList.contains('on')) return;
-      const ghost = document.createElement('span'); ghost.className = 'seg-ghost';
-      ghost.style.left = b.offsetLeft + 'px'; ghost.style.width = b.offsetWidth + 'px';
-      seg.appendChild(ghost); b.classList.add('seg-hold');
-      const a = ghost.animate([{ transform: 'translateX(' + (prev.offsetLeft - b.offsetLeft) + 'px)' }, { transform: 'none' }], { duration: 380, easing: SETTLE });
-      a.onfinish = () => { ghost.remove(); b.classList.remove('seg-hold'); };
-    });
+    const b = e.target.closest('.seg > button, .chips > button'); if (!b || !b.closest('.sheet')) return;
+    const box = b.parentElement, prev = box.querySelector(':scope > .on');
+    if (!prev || prev === b) return;
+    const from = rectIn(prev);
+    requestAnimationFrame(() => { if (b.classList.contains('on')) glide(box, b, from); });
   }, true);
 
   /* ---------- Scroll reveal: cards ease in as they come into view ---------- */
@@ -149,6 +165,90 @@
       io.observe(el);
     });
   }
+
+
+  /* ---------- Numbers count like a meter: from 0 on arrival, from the old value when a filter changes ---------- */
+  App._counts = App._counts || {};
+  const COUNT = '.hero .big, .hero .pill, .kpi .v, .stat .v.num, .donut-center b, [data-count]';
+  const NUM_RE = /([+\u2212-]?)(\d[\d,]*)(\.\d+)?/;
+  const ease = (t) => 1 - Math.pow(1 - t, 4);
+  function countUp(view, fromZero) {
+    const scope = App.ui.route + '/' + (App.ui.sub || '');
+    view.querySelectorAll(COUNT).forEach((el, i) => {
+      // The number is the last text node holding digits (the AED label stays put).
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let node = null, n; while ((n = walker.nextNode())) if (NUM_RE.test(n.nodeValue)) node = n;
+      if (!node) return;
+      const txt = node.nodeValue, mt = txt.match(NUM_RE);
+      const dec = mt[3] ? mt[3].length - 1 : 0;
+      const neg = mt[1] === '\u2212' || mt[1] === '-';
+      const val = (neg ? -1 : 1) * parseFloat(mt[2].replace(/,/g, '') + (mt[3] || ''));
+      const key = scope + '#' + i + ':' + el.className;
+      const prev = App._counts[key];
+      App._counts[key] = val;
+      const from = fromZero || prev === undefined ? 0 : prev;
+      if (reduce || from === val) return;
+      const pre = txt.slice(0, mt.index), post = txt.slice(mt.index + mt[0].length);
+      const show = (v) => {
+        const a = Math.abs(v);
+        node.nodeValue = pre + (v < 0 && a >= Math.pow(10, -dec) / 2 ? (mt[1] === '-' ? '-' : '\u2212') : (mt[1] === '+' ? '+' : '')) +
+          a.toLocaleString('en-AE', { minimumFractionDigits: dec, maximumFractionDigits: dec }) + post;
+      };
+      const dur = fromZero ? 1100 : 700, t0 = performance.now();
+      show(from);
+      const tick = (now) => {
+        if (!node.isConnected) return;
+        const t = Math.min(1, (now - t0) / dur);
+        if (t < 1) { show(from + (val - from) * ease(t)); requestAnimationFrame(tick); } else node.nodeValue = txt;
+      };
+      requestAnimationFrame(tick);
+    });
+  }
+
+  /* ---------- Scroll follow: each card trails the one before it, then springs into place ---------- */
+  const follow = (() => {
+    if (reduce) return { reset() {} };
+    let items = [], lastY = window.scrollY, touchY = null, running = false;
+    const STRETCH = 0.42, MAXO = 46, K = 0.075, DAMP = 0.8;
+    const collect = () => {
+      const view = document.getElementById('view'); if (!view) return [];
+      return Array.from(view.querySelectorAll(':scope > *, .grid > *, .settings-grid > *, .day-h, .day-group'))
+        .filter((el) => !el.classList.contains('grid') && !el.classList.contains('settings-grid') && !el.classList.contains('large-title'))
+        .map((el) => ({ el, o: 0, v: 0, y: 0 }));
+    };
+    const reset = () => { items.forEach((it) => { it.el.style.translate = ''; }); items = collect(); lastY = window.scrollY; };
+    const frame = () => {
+      let moving = false;
+      items.forEach((it) => {
+        it.v = (it.v - it.o * K) * DAMP; it.o += it.v;
+        if (Math.abs(it.o) < 0.15 && Math.abs(it.v) < 0.15) { it.o = 0; it.v = 0; }
+        else moving = true;
+        it.el.style.translate = it.o ? '0 ' + it.o.toFixed(2) + 'px' : '';
+      });
+      running = moving;
+      if (moving) requestAnimationFrame(frame);
+    };
+    window.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+    window.addEventListener('touchmove', (e) => { touchY = e.touches[0].clientY; }, { passive: true });
+    window.addEventListener('touchend', () => { touchY = null; }, { passive: true });
+    window.addEventListener('scroll', () => {
+      const y = window.scrollY, d = y - lastY; lastY = y;
+      if (!d || App.ui.locked || y < 0 || y > document.documentElement.scrollHeight - innerHeight) return;
+      if (!items.length || !items[0].el.isConnected) items = collect();
+      const vh = innerHeight;
+      // Content under the finger moves 1:1; the farther a card is from it, the more it lags behind.
+      const anchor = touchY !== null ? touchY : (d > 0 ? vh * 0.25 : vh * 0.75);
+      items.forEach((it) => {
+        const r = it.el.getBoundingClientRect();
+        if (r.bottom < -80 || r.top > vh + 80) return;
+        const mid = Math.min(Math.max(anchor, r.top), r.bottom);
+        const w = Math.min(1, Math.abs(mid - anchor) / vh);
+        it.o = Math.max(-MAXO, Math.min(MAXO, it.o + d * w * STRETCH));
+      });
+      if (!running) { running = true; requestAnimationFrame(frame); }
+    }, { passive: true });
+    return { reset };
+  })();
 
   /* ---------- Pull down to refresh (elastic) ---------- */
   const ptr = document.createElement('div');

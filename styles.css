@@ -3,7 +3,7 @@
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", system-ui, "Helvetica Neue", sans-serif;
   --font-round: ui-rounded, -apple-system, "SF Pro Rounded", system-ui, sans-serif;
-  --safe-t: env(safe-area-inset-top, 0px); --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px); --top-gap: 16px; --safe-b: env(safe-area-inset-bottom, 0px);
   --ease: cubic-bezier(.32, .72, 0, 1);
   --spring: cubic-bezier(.34, 1.36, .64, 1);
   --r-card: 26px; --r-ctl: 999px;
@@ -66,7 +66,7 @@ a { color: var(--accent); text-decoration: none; }
 
 /* ---------- Shell ---------- */
 .shell { min-height: 100dvh; max-width: 720px; margin: 0 auto; position: relative; }
-.navbar { position: sticky; top: 0; z-index: 20; height: calc(var(--safe-t) + 60px); padding: calc(var(--safe-t) + 8px) 16px 8px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.navbar { position: sticky; top: 0; z-index: 20; height: calc(var(--safe-t) + var(--top-gap) + 60px); padding: calc(var(--safe-t) + var(--top-gap) + 8px) 16px 8px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
 .navbar::before { content: ''; position: absolute; inset: 0 0 -24px 0; z-index: -1; pointer-events: none;
   background: linear-gradient(to bottom, var(--bg) 0%, color-mix(in srgb, var(--bg) 85%, transparent) 55%, transparent 100%);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -370,7 +370,14 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* ---------- Motion ---------- */
 .seg button { position: relative; z-index: 1; }
 .seg button.on.seg-hold { background: transparent; box-shadow: none; }
-.seg-ghost { position: absolute; z-index: 0; top: 2px; bottom: 2px; border-radius: 999px; background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); pointer-events: none; transform-origin: center; }
+.chips { position: relative; } .chip { position: relative; z-index: 1; }
+.chip.on.seg-hold { background: transparent; color: var(--text); }
+.seg-ghost.chip-ghost, :root[data-theme="dark"] .seg-ghost.chip-ghost { background: var(--accent); box-shadow: none; }
+.seg-ghost { will-change: left, width; }
+/* Invisible switch over each control, so iOS plays its tap haptic */
+[data-haptic] { position: absolute; inset: 0; z-index: 5; border-radius: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+[data-haptic] input { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; opacity: 0; visibility: hidden; pointer-events: none; }
+.seg-ghost { position: absolute; z-index: 0; border-radius: 999px; background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); pointer-events: none; transform-origin: center; }
 :root[data-theme="dark"] .seg-ghost { background: #636366; }
 .reveal { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity .5s var(--ease), transform .75s cubic-bezier(.34, 1.2, .64, 1); }
 .reveal.in { opacity: 1; transform: none; }
@@ -380,7 +387,7 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .circle:active, .fab:active { transform: scale(.9); }
 .li { transition: opacity .15s, background .2s; }
 .card, .stat, .menu, .day-group { transform-origin: center top; }
-#ptr { position: fixed; z-index: 15; left: 50%; top: calc(var(--safe-t) + 58px); transform: translate(-50%, 0) scale(.6); opacity: 0; pointer-events: none; }
+#ptr { position: fixed; z-index: 15; left: 50%; top: calc(var(--safe-t) + var(--top-gap) + 58px); transform: translate(-50%, 0) scale(.6); opacity: 0; pointer-events: none; }
 #ptr .spinner { position: relative; width: 28px; height: 28px; }
 #ptr .spinner i { position: absolute; left: 50%; top: 0; width: 3px; height: 8px; margin-left: -1.5px; border-radius: 2px; background: var(--text-2); transform-origin: 50% 14px; transition: opacity .12s; }
 #ptr.spin .spinner { animation: ptrspin .8s steps(8) infinite; }
@@ -409,9 +416,12 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* ---------- Sign-in screen: fixed, with drifting light and ripples ---------- */
 html.is-locked, html.is-locked body { overflow: hidden; height: 100%; overscroll-behavior: none; }
 html.is-locked body { position: fixed; inset: 0; touch-action: none; }
-.lock { position: fixed; inset: 0; min-height: 0; height: 100dvh; overflow: hidden; background: var(--bg); touch-action: none; }
+html.is-locked { background: var(--bg); }
+/* Fill the whole screen, including under the home bar (100dvh stops short in Home Screen apps). */
+.lock { position: fixed; inset: 0; min-height: 0; height: auto; overflow: visible; background: transparent; touch-action: none; }
+.lock::before { content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: -60px; bottom: calc(-1 * var(--safe-b) - 200px); background: var(--bg); pointer-events: none; }
 .lock-card { position: relative; z-index: 1; }
-.lock-bg { position: absolute; inset: -20%; pointer-events: none; filter: blur(60px); opacity: .9; }
+.lock-bg { position: absolute; inset: -20% -20% calc(-20% - 200px); pointer-events: none; filter: blur(60px); opacity: .9; }
 .lock-bg i { position: absolute; border-radius: 50%; display: block; }
 .lock-bg i:nth-child(1) { width: 70vmax; height: 70vmax; left: 5%; top: -10%; background: color-mix(in srgb, var(--accent) 38%, transparent); animation: drift1 18s ease-in-out infinite alternate; }
 .lock-bg i:nth-child(2) { width: 55vmax; height: 55vmax; right: -5%; top: 10%; background: color-mix(in srgb, var(--p2) 26%, transparent); animation: drift2 22s ease-in-out infinite alternate; }
