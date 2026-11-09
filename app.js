@@ -384,42 +384,123 @@
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    /* The six code dots are the animation: they form a turning ring while the code is checked,
-       fly back into their row if it's wrong, or merge into one circle that opens into the app. */
+    /* The six code dots are the animation, driven frame by frame:
+       - start: they run right along the row like a train and enter the ring from its right edge,
+         then the ring glides to the middle and turns;
+       - waiting: every 3 loops they blend into a new pattern (orbit, breathe, cluster, star, figure-8, wave);
+       - wrong code: the ring drifts left and the dots leave from its left edge back into the row like a train;
+       - right code: they melt together (softly blurred) into one glowing circle. */
     const ring = (() => {
-      const ds = Array.from(dots.children), R = 30;
-      const rowX = (i) => (i - 2.5) * (ds[1].offsetLeft - ds[0].offsetLeft);
-      const freeze = () => {
-        const ang = parseFloat(getComputedStyle(dots).rotate) || 0;
-        dots.classList.remove('spin'); dots.style.transition = 'none'; dots.style.rotate = ang + 'deg';
-        ds.forEach((d) => { d.style.scale = ''; });
-        void dots.offsetWidth;
-        return ((ang % 360) + 360) % 360;
+      const ds = Array.from(dots.children), N = ds.length;
+      const gap = () => ds[1].offsetLeft - ds[0].offsetLeft;
+      const rowX = (i) => (i - (N - 1) / 2) * gap();
+      const TAU = Math.PI * 2;
+      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+      let raf = 0, mode = '', cycle = false, last = 0, cur = [];
+      let R = 0, P = 0, cx = 0, D = 0, tMode = 0, pat = 0, tPat = 0, blendFrom = null, tBlend = 0, exitInfo = null, done = null;
+      const V = 210;   // train speed, px per second
+      const PATS = [
+        { per: 1.6, f: (t, i) => ({ r: R, a: P + (N - 1 - i) * TAU / N, s: 0.8 + 0.2 * Math.sin(TAU * t / 1.2 + i) }) },                                  // orbit with a pulse wave
+        { per: 1.6, w: 0.6, f: (t, i) => ({ r: R * (1 + 0.3 * Math.sin(TAU * t / 1.6)), a: P + (N - 1 - i) * TAU / N, s: 1 - 0.18 * Math.sin(TAU * t / 1.6) }) }, // breathe
+        { per: 1.8, w: 1.2, f: (t, i) => ({ r: R, a: P + (N - 1 - i) * (TAU / N) * (0.62 + 0.38 * Math.cos(TAU * t / 1.8)), s: 1 }) },                     // cluster and spread
+        { per: 1.4, w: 0.7, f: (t, i) => ({ r: R * (1 + 0.34 * Math.sin(TAU * t / 1.4) * (i % 2 ? 1 : -1)), a: P + (N - 1 - i) * TAU / N, s: 1 }) },          // star
+        { per: 2.2, w: 0, xy: (t, i) => { const f = TAU * t / 2.2 + i * TAU / N, A = R * 1.7, d = 1 + Math.sin(f) ** 2; return { x: A * Math.cos(f) / d, y: A * Math.sin(f) * Math.cos(f) / d, s: 1 }; } }, // figure of eight
+        { per: 1.1, w: 0, xy: (t, i) => ({ x: (i - (N - 1) / 2) * 15, y: 10 * Math.sin(TAU * t / 1.1 - i * 0.75), s: 1 }) }                                // wave
+      ];
+      const orbitAt = (c, i, r) => { const a = P + (N - 1 - i) * TAU / N; return { x: c + r * Math.cos(a), y: r * Math.sin(a), s: 1 }; };
+      const patPos = (k, t, i) => { const q = PATS[k]; if (q.xy) return q.xy(t, i); const o = q.f(t, i); return { x: o.r * Math.cos(o.a), y: o.r * Math.sin(o.a), s: o.s }; };
+      const apply = (pos) => {
+        cur = pos;
+        pos.forEach((p, i) => { ds[i].style.translate = (p.x - rowX(i)).toFixed(2) + 'px ' + p.y.toFixed(2) + 'px'; ds[i].style.scale = p.s.toFixed(3); });
       };
-      return {
-        gather() {
-          dots.style.transition = 'none'; dots.style.rotate = ''; void dots.offsetWidth; dots.style.transition = '';
-          ds.forEach((d, i) => {
-            const a = (-90 + i * 60) * Math.PI / 180;
-            d.style.transition = 'translate .65s cubic-bezier(.34, 1.3, .64, 1) ' + i * 45 + 'ms, background .2s, opacity .3s';
-            d.style.translate = (R * Math.cos(a) - rowX(i)).toFixed(1) + 'px ' + (R * Math.sin(a)).toFixed(1) + 'px';
+      const blendTo = (now, target) => {
+        if (!blendFrom) return target;
+        const k = Math.min(1, (now - tBlend) / 600);
+        if (k >= 1) { blendFrom = null; return target; }
+        const e = ease(k);
+        return target.map((p, i) => ({ x: blendFrom[i].x + (p.x - blendFrom[i].x) * e, y: blendFrom[i].y + (p.y - blendFrom[i].y) * e, s: blendFrom[i].s + (p.s - blendFrom[i].s) * e }));
+      };
+      const startBlend = (now) => { blendFrom = cur.map((p) => Object.assign({}, p)); tBlend = now; };
+      const frame = (now) => {
+        const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        const t = (now - tMode) / 1000;
+        let pos;
+        if (mode === 'enter') {
+          // The train runs right along the row and turns up into the ring at its right edge.
+          D = t < 0.35 ? V * t * t / 0.7 : V * (t - 0.175);
+          const xR = rowX(N - 1), c = xR - R;
+          pos = ds.map((_, i) => {
+            const u = rowX(i) - xR + D;
+            if (u <= 0) return { x: xR + u, y: 0, s: 1 };
+            const a = -u / R; return { x: c + R * Math.cos(a), y: R * Math.sin(a), s: 1 };
           });
-          setTimeout(() => { if (lockEl.classList.contains('checking') && !lockEl.classList.contains('leaving')) dots.classList.add('spin'); }, 520);
-        },
-        back() {
-          const ang = freeze();
-          dots.style.transition = 'rotate .6s cubic-bezier(.34, 1.2, .64, 1)';
-          dots.style.rotate = (ang > 180 ? 360 : 0) + 'deg';
-          ds.forEach((d, i) => { d.style.transition = 'translate .6s cubic-bezier(.34, 1.25, .64, 1) ' + (5 - i) * 35 + 'ms, background .2s'; d.style.translate = ''; });
-          return wait(still ? 0 : 720).then(() => { dots.style.transition = 'none'; dots.style.rotate = ''; void dots.offsetWidth; dots.style.transition = ''; });
-        },
-        async merge() {
-          freeze();
-          ds.forEach((d, i) => { d.style.transition = 'translate .42s cubic-bezier(.55, 0, .3, 1) ' + i * 25 + 'ms'; d.style.translate = (-rowX(i)).toFixed(1) + 'px 0px'; });
-          await wait(still ? 0 : 520);
-          ds.forEach((d) => { d.style.transition = 'scale .42s cubic-bezier(.34, 1.56, .64, 1)'; d.style.scale = '2.4'; });
-          await wait(still ? 0 : 380);
+          if (rowX(0) - xR + D > 0) { // every dot is on the ring: hand over to the turning patterns
+            const a5 = -(D) / R; P = a5; cx = c;
+            mode = 'turn'; tMode = now; pat = 0; tPat = now; startBlend(now);
+          }
+        } else if (mode === 'turn') {
+          const q = PATS[pat]; P -= (q.w === undefined ? TAU / q.per : q.w * TAU / q.per) * dt;
+          cx += (0 - cx) * Math.min(1, dt * 4);            // the ring glides to the middle
+          const tp = (now - tPat) / 1000;
+          pos = blendTo(now, ds.map((_, i) => { const p = patPos(pat, tp, i); return { x: p.x + cx, y: p.y, s: p.s }; }));
+          if (cycle && tp > q.per * 3) { pat = (pat + 1) % PATS.length; tPat = now; startBlend(now); }
+          if (!cycle && pat !== 0) { pat = 0; tPat = now; startBlend(now); }
+        } else if (mode === 'toLeft') {
+          // Back to a plain orbit, drifting left until the ring's left edge meets the first dot's place.
+          P -= TAU / 1.6 * dt;
+          const cL = rowX(0) + R;
+          pos = blendTo(now, ds.map((_, i) => orbitAt(cL, i, R)));
+          if (!blendFrom) {
+            // Who leaves first: the dot closest (going round) to the left edge. It goes furthest along the row.
+            const dist = ds.map((_, i) => { const a = P + (N - 1 - i) * TAU / N; return { i, e: ((((a + Math.PI) % TAU) + TAU) % TAU) * R }; }).sort((x, y) => x.e - y.e);
+            exitInfo = { cL, P0: P, list: dist.map((o, rank) => ({ i: o.i, e: o.e, slot: rowX(N - 1 - rank) })) };
+            mode = 'exit'; tMode = now;
+          }
+        } else if (mode === 'exit') {
+          const De = V * 1.25 * t, { cL, P0, list } = exitInfo, xL = cL - R;
+          pos = [];
+          let all = true;
+          list.forEach((o) => {
+            const v = De - o.e;
+            if (v < 0) { all = false; const a = P0 - De / R + (N - 1 - o.i) * TAU / N; pos[o.i] = { x: cL + R * Math.cos(a), y: R * Math.sin(a), s: 1 }; return; }
+            const L = o.slot - xL;
+            if (v < L) all = false;
+            const k = L > 0 ? Math.min(1, v / L) : 1;
+            pos[o.i] = { x: xL + L * (k < 0.8 ? k : 0.8 + 0.2 * Math.sin(((k - 0.8) / 0.2) * Math.PI / 2)), y: 0, s: 1 };
+          });
+          if (all) { // every place is filled again: snap each dot to its own place (they look identical)
+            ds.forEach((d) => { d.style.translate = ''; d.style.scale = ''; });
+            cancelAnimationFrame(raf); raf = 0; mode = ''; const f = done; done = null; if (f) f(); return;
+          }
+        } else if (mode === 'merge') {
+          pos = blendTo(now, ds.map(() => ({ x: cx, y: 0, s: 2.6 })));
+          if (!blendFrom) { cancelAnimationFrame(raf); raf = 0; apply(pos); const f = done; done = null; if (f) f(); return; }
         }
+        apply(pos);
+        raf = requestAnimationFrame(frame);
+      };
+      const run = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+      return {
+        gather(waiting) {
+          cycle = !!waiting;
+          if (mode === 'turn' || mode === 'enter') return;
+          R = N * gap() / TAU; D = 0; cx = 0; blendFrom = null;
+          dots.style.filter = '';
+          if (still) return;
+          cur = ds.map((_, i) => ({ x: rowX(i), y: 0, s: 1 }));
+          mode = 'enter'; tMode = performance.now(); run();
+        },
+        cycle(on) { cycle = on; },
+        back() {
+          if (still || !mode) { ds.forEach((d) => { d.style.translate = ''; d.style.scale = ''; }); mode = ''; return Promise.resolve(); }
+          return new Promise((res) => { done = res; mode = 'toLeft'; tMode = performance.now(); startBlend(tMode); run(); });
+        },
+        merge() {
+          dots.style.transition = 'filter .45s ease'; dots.style.filter = 'blur(3px)';
+          if (still || !mode) return wait(still ? 0 : 450);
+          return new Promise((res) => { done = res; mode = 'merge'; startBlend(performance.now()); run(); }).then(() => wait(120));
+        },
+        stop() { cancelAnimationFrame(raf); raf = 0; mode = ''; }
       };
     })();
 
@@ -432,7 +513,7 @@
     const startWait = () => {
       const lo = getLO();
       if (!(lo.until > Date.now())) return false;
-      if (!lockEl.classList.contains('checking')) { lockEl.classList.add('checking'); ring.gather(); }
+      if (!lockEl.classList.contains('checking')) { lockEl.classList.add('checking'); ring.gather(true); } else ring.cycle(true);
       lockEl.classList.add('waiting');
       clearInterval(timer);
       const tick = () => {
@@ -461,8 +542,9 @@
     };
     const problem = async (t) => { await ring.back(); pin = ''; draw(); lockEl.classList.remove('checking'); say(t, 'neg'); };
 
-    // Correct code: the dots merge into one circle, then the app opens out of that circle
-    // while the sign-in screen zooms in towards it.
+    // Correct code: the dots melt into one soft glowing circle; the app appears behind while the glow
+    // swells out to the edges and fades, and the sign-in screen fades away. Only opacity and
+    // transform are animated, so it stays smooth on the phone.
     const enter = async (fresh) => {
       setLO({});
       clearInterval(timer);
@@ -472,15 +554,19 @@
       lockEl.classList.add('leaving');
       App.unlocked(fresh);
       window.scrollTo(0, 0);
-      const appEl = document.getElementById('app');
-      if (still || !appEl.animate) return lockEl.remove();
-      const far = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy)) + 20;
-      appEl.classList.add('revealing');
-      const at = ' at ' + cx.toFixed(0) + 'px ' + cy.toFixed(0) + 'px)';
+      if (still || !lockEl.animate) { lockEl.remove(); return; }
+      const orb = document.createElement('div'); orb.className = 'reveal-orb';
+      const size = 44; orb.style.cssText = 'left:' + (cx - size / 2) + 'px;top:' + (cy - size / 2) + 'px;width:' + size + 'px;height:' + size + 'px';
+      document.body.appendChild(orb);
+      const far = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy));
+      const big = (far * 2.3) / size;
+      ring.stop(); dots.style.opacity = '0';
+      const E = 'cubic-bezier(.55, 0, .2, 1)';
+      orb.animate([{ transform: 'scale(.7)', opacity: 1 }, { transform: 'scale(' + (big * 0.45).toFixed(1) + ')', opacity: 0.55, offset: 0.55 }, { transform: 'scale(' + big.toFixed(1) + ')', opacity: 0 }], { duration: 900, easing: E, fill: 'forwards' })
+        .onfinish = () => orb.remove();
       lockEl.style.transformOrigin = cx + 'px ' + cy + 'px';
-      lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 0 }], { duration: 760, easing: 'cubic-bezier(.6, 0, .3, 1)', fill: 'forwards' });
-      appEl.animate([{ clipPath: 'circle(15px' + at, opacity: .4 }, { clipPath: 'circle(' + far.toFixed(0) + 'px' + at, opacity: 1 }], { duration: 760, easing: 'cubic-bezier(.65, 0, .25, 1)' })
-        .onfinish = () => { appEl.classList.remove('revealing'); lockEl.remove(); };
+      lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.12)', opacity: 0 }], { duration: 620, delay: 80, easing: E, fill: 'forwards' })
+        .onfinish = () => lockEl.remove();
     };
 
     const submit = async () => {

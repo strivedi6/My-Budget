@@ -313,13 +313,12 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .pin-load .ld { font-size: 17px; }
 .lock.checking .pin-dots { margin: 52px 0 40px; }
 .pin-dots i { will-change: translate, scale; }
-.pin-dots.spin { animation: ringSpin 1.8s linear infinite; }
-.pin-dots.spin i { animation: ringPulse 1.2s ease-in-out infinite; animation-delay: calc(var(--i) * -.2s); }
-.lock.waiting .pin-dots i { opacity: .45; }
-.lock.waiting .pin-dots.spin { animation-duration: 4s; }
-@keyframes ringSpin { to { rotate: 360deg; } }
-@keyframes ringPulse { 0%, 100% { scale: 1; } 50% { scale: .55; } }
-#app.revealing { position: relative; z-index: 101; min-height: 100dvh; background: var(--bg); }
+.lock.waiting .pin-dots i { opacity: .6; background: var(--text); }
+.lock.leaving { pointer-events: none; will-change: transform, opacity; }
+.lock.leaving .lock-bg i, .lock.leaving .ripple { animation-play-state: paused; }
+/* Soft glow that the merged dots become; it swells to the screen edges and fades as the app appears */
+.reveal-orb { position: fixed; z-index: 102; border-radius: 50%; pointer-events: none; will-change: transform, opacity;
+  background: radial-gradient(circle, var(--text) 0%, color-mix(in srgb, var(--text) 85%, transparent) 30%, color-mix(in srgb, var(--accent) 45%, transparent) 55%, transparent 72%); }
 .lock.checking .pin-load { opacity: 1; transform: none; }
 .keypad { transition: transform .6s cubic-bezier(.32, .72, 0, 1), opacity .4s; }
 .lock.checking .keypad { transform: translateY(70%); opacity: 0; pointer-events: none; }
