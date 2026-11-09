@@ -1,6 +1,6 @@
 /* Service worker: keeps a copy of the app on the device so it opens instantly and works offline.
  * Raise VERSION whenever you upload a new version (match appVersion in config.js). */
-const VERSION = '1.3.2';
+const VERSION = '1.3.3';
 const CACHE = 'mybudget-' + VERSION;
 const SHELL = [
   './',
