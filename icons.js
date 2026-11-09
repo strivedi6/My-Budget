@@ -118,8 +118,13 @@ window.icon = function (name, size) {
   const s = size || 20;
   return '<svg class="ic" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
 };
+window.catTone = function (name) {
+  let h = 0; const n = String(name || 'package');
+  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+  return h % 10;
+};
 window.catIcon = function (name, size) {
   const p = window.CAT_ICONS[name] || window.CAT_ICONS.package;
   const s = size || 18;
-  return '<svg class="ic" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
+  return '<svg class="ic" data-tone="' + window.catTone(name) + '" viewBox="0 0 24 24" width="' + s + '" height="' + s + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + p + '</svg>';
 };

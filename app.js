@@ -84,15 +84,12 @@
     if (acc.charAt(0) === '#') { root.setAttribute('data-accent', 'custom'); root.style.setProperty('--accent', acc); }
     else { root.setAttribute('data-accent', acc); root.style.removeProperty('--accent'); }
     const m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', dark ? '#0F0E0C' : '#F4F1EB');
+    if (m) m.setAttribute('content', dark ? '#000000' : '#F2F2F7');
   };
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (App.prefs.appearance === 'auto') { App.applyTheme(); App.renderView(); } });
 
   /* ---------------- Charts ---------------- */
-  App.palette = () => {
-    const acc = App.css('--accent'), p2 = App.css('--p2');
-    return [acc, p2, '#6C8CFF', '#E0699A', '#8DBF4B', '#F08A4B', '#9B7BEA', '#3BB3D9', '#D4B24C', '#C46A6A', '#7A9E7E', '#B08968', '#5C6BC0', '#A1887F'];
-  };
+  App.palette = () => ['--accent', '--p2', '--indigo', '--pink', '--green', '--orange', '--purple', '--blue', '--yellow', '--brown', '--mint', '--red', '--teal', '--gray'].map(App.css);
   App.destroyCharts = () => { Object.values(App.charts).forEach((c) => { try { c.destroy(); } catch (e) {} }); App.charts = {}; };
   App.chart = (id, cfg) => {
     const el = document.getElementById(id);
@@ -144,7 +141,8 @@
     const root = document.getElementById('sheet-root');
     const back = document.createElement('div'); back.className = 'sheet-back';
     const el = document.createElement('div'); el.className = 'sheet' + (opt.wide ? ' wide' : ''); el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
-    el.innerHTML = '<div class="grab"></div><div class="sh-h"><h2>' + h(opt.title || '') + '</h2><button class="icon-btn" data-close aria-label="Close">' + icon('close') + '</button></div>' +
+    el.innerHTML = '<div class="grab"></div><div class="sh-h"><button class="circle press" data-close aria-label="Close">' + icon('close', 20) + '</button><h2>' + h(opt.title || '') + '</h2>' +
+      (opt.okAttr ? '<button class="circle tint press" ' + opt.okAttr + ' aria-label="Done">' + icon('check', 22) + '</button>' : '<span></span>') + '</div>' +
       '<div class="sh-b">' + (opt.body || '') + '</div>' + (opt.foot ? '<div class="sh-f">' + opt.foot + '</div>' : '');
     root.appendChild(back); root.appendChild(el);
     requestAnimationFrame(() => { back.classList.add('in'); el.classList.add('in'); });
@@ -185,23 +183,29 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { const top = App._sheets[App._sheets.length - 1]; if (top) top.close(); } });
 
   App.confirm = (o) => new Promise((resolve) => {
-    let done = false;
-    const s = App.sheet({
-      title: o.title || 'Are you sure?',
-      body: '<p class="sub" style="margin:4px 0 6px">' + (o.html || h(o.message || '')) + '</p>',
-      foot: '<button class="btn" data-no>Cancel</button><button class="btn ' + (o.danger ? 'danger' : 'primary') + '" data-yes>' + h(o.ok || 'OK') + '</button>',
-      onClose: () => { if (!done) resolve(false); },
-      onMount(el, api) {
-        el.querySelector('[data-no]').onclick = () => api.close();
-        el.querySelector('[data-yes]').onclick = () => { done = true; resolve(true); api.close(); };
-      }
-    });
-    return s;
+    const root = document.getElementById('sheet-root');
+    const back = document.createElement('div'); back.className = 'alert-back';
+    const el = document.createElement('div'); el.className = 'alert'; el.setAttribute('role', 'alertdialog');
+    el.innerHTML = '<h2>' + h(o.title || 'Are you sure?') + '</h2><p>' + (o.html || h(o.message || '')) + '</p>' +
+      '<div class="acts"><button class="btn" data-no>Cancel</button><button class="btn ' + (o.danger ? 'danger' : 'primary') + '" data-yes>' + h(o.ok || 'OK') + '</button></div>';
+    root.appendChild(back); root.appendChild(el);
+    requestAnimationFrame(() => { back.classList.add('in'); el.classList.add('in'); });
+    const done = (v) => {
+      back.classList.remove('in'); el.classList.remove('in');
+      setTimeout(() => { back.remove(); el.remove(); }, 250);
+      document.removeEventListener('keydown', onKey, true);
+      resolve(v);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    document.addEventListener('keydown', onKey, true);
+    el.querySelector('[data-no]').onclick = () => done(false);
+    el.querySelector('[data-yes]').onclick = () => done(true);
+    back.onclick = () => done(false);
   });
 
   /* ---------------- Routing ---------------- */
   const TABS = [
-    ['home', 'Home', 'home'], ['spends', 'Spends', 'list'], ['insights', 'Insights', 'chart'], ['settings', 'Settings', 'settings']
+    ['home', 'Summary', 'home'], ['spends', 'Spends', 'list'], ['insights', 'Insights', 'chart'], ['settings', 'Settings', 'settings']
   ];
   App.go = (route, sub) => {
     const hash = '#/' + route + (sub ? '/' + sub : '');
@@ -221,32 +225,21 @@
     const app = document.getElementById('app');
     app.innerHTML =
       '<div class="shell">' +
-      '<aside class="sidebar">' +
-        '<div class="brand"><div class="av" id="sb-av"></div><div style="min-width:0"><b id="sb-name"></b><small>' + h(CFG.appName || 'My Budget') + '</small></div></div>' +
-        '<nav id="sb-nav"></nav>' +
-        '<button class="btn primary add" data-add>' + icon('plus', 18) + 'Add spend</button>' +
-        '<div class="foot" id="sb-sync"></div>' +
-      '</aside>' +
-      '<div class="main">' +
-        '<header class="topbar" id="topbar"></header>' +
+        '<header class="navbar" id="navbar"></header>' +
         '<main class="content" id="view"></main>' +
       '</div>' +
-      '<nav class="tabbar" id="tabbar"></nav>' +
-      '</div>';
-    app.querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => App.spendSheet()));
+      '<div class="tabdock"><nav class="tabbar glass" id="tabbar"></nav>' +
+        '<button class="fab glass press" data-add aria-label="Add spend">' + icon('plus', 28) + '</button></div>';
+    app.querySelector('[data-add]').onclick = () => App.spendSheet();
     App.renderNav();
   };
 
   App.renderNav = () => {
     const r = App.ui.route;
-    const sb = document.getElementById('sb-nav'); if (!sb) return;
-    sb.innerHTML = TABS.map((t) => '<a href="#/' + t[0] + '" class="' + (r === t[0] ? 'on' : '') + '">' + icon(t[2]) + t[1] + '</a>').join('');
-    document.getElementById('sb-av').innerHTML = App.avatarHtml();
-    document.getElementById('sb-name').textContent = App.name1();
-    const tb = document.getElementById('tabbar');
-    const tab = (t) => '<a href="#/' + t[0] + '" class="tab ' + (r === t[0] ? 'on' : '') + '" style="text-decoration:none">' + icon(t[2], 22) + t[1] + '</a>';
-    tb.innerHTML = tab(TABS[0]) + tab(TABS[1]) + '<button class="fab" data-add aria-label="Add spend">' + icon('plus', 26) + '</button>' + tab(TABS[2]) + tab(TABS[3]);
-    tb.querySelector('[data-add]').onclick = () => App.spendSheet();
+    const tb = document.getElementById('tabbar'); if (!tb) return;
+    const i = Math.max(0, TABS.findIndex((t) => t[0] === r));
+    tb.innerHTML = '<span class="tab-pill" style="width:calc((100% - 8px) / ' + TABS.length + ');transform:translateX(' + (i * 100) + '%)"></span>' +
+      TABS.map((t) => '<a href="#/' + t[0] + '" class="tab ' + (r === t[0] ? 'on' : '') + '">' + icon(t[2], 25) + t[1] + '</a>').join('');
     App.renderSync();
   };
 
@@ -266,20 +259,18 @@
   };
   App.renderSync = () => {
     const i = App.syncInfo();
-    const sb = document.getElementById('sb-sync');
-    if (sb) sb.innerHTML = '<span class="syncdot" data-s="' + Store.status + '" style="width:auto;height:auto">' + icon(i.icon, 16) + '</span><span>' + h(i.text) + '</span>';
     const dot = document.getElementById('top-sync');
     if (dot) {
       dot.setAttribute('data-s', Store.status);
-      dot.innerHTML = icon(i.icon, 20) + (Store.outbox.length && Store.status !== 'saving' ? '<span class="badge-n">' + Store.outbox.length + '</span>' : '');
+      dot.innerHTML = icon(i.icon, 21) + (Store.outbox.length && Store.status !== 'saving' ? '<span class="badge-n">' + Store.outbox.length + '</span>' : '');
       dot.title = i.text;
     }
   };
 
   App.monthSwitcher = () => {
     const m = App.ui.month, cur = m === Calc.currentMk();
-    return '<div class="monthsw"><button data-mprev aria-label="Previous month">' + icon('left', 18) + '</button>' +
-      '<button class="lbl ' + (cur ? 'cur' : '') + '" data-mpick title="Pick a month">' + h(App.isDesktop() ? Calc.monthLabel(m) : Calc.monthShort(m)) + '</button>' +
+    return '<div class="monthsw glass"><button data-mprev aria-label="Previous month">' + icon('left', 18) + '</button>' +
+      '<button class="lbl ' + (cur ? 'cur' : '') + '" data-mpick title="Pick a month">' + h(Calc.monthShort(m)) + '</button>' +
       '<button data-mnext aria-label="Next month">' + icon('right', 18) + '</button></div>';
   };
   App.bindMonthSwitcher = (root) => {
@@ -310,19 +301,26 @@
     if (App.ui.locked || !document.getElementById('view')) return;
     App.destroyCharts();
     const scr = App.screens[App.ui.route];
-    const top = document.getElementById('topbar');
+    const nav = document.getElementById('navbar');
     const title = typeof scr.title === 'function' ? scr.title() : scr.title;
-    top.innerHTML = '<button class="avatar-btn" data-go-settings aria-label="Settings">' + App.avatarHtml() + '</button>' +
-      '<div class="title">' + h(title) + '</div>' + ((typeof scr.month === 'function' ? scr.month() : scr.month !== false) ? App.monthSwitcher() : '') +
-      '<button class="syncdot" id="top-sync" data-go-sync aria-label="Sync status"></button>';
-    top.querySelector('[data-go-settings]').onclick = () => App.go('settings');
-    top.querySelector('[data-go-sync]').onclick = () => App.go('settings', 'sync');
-    App.bindMonthSwitcher(top);
+    const sub = typeof scr.subtitle === 'function' ? scr.subtitle() : '';
+    const showMonth = typeof scr.month === 'function' ? scr.month() : scr.month !== false;
+    const backTo = typeof scr.back === 'function' ? scr.back() : '';
+    nav.innerHTML = '<div class="nb-l">' + (backTo ? '<a class="circle glass press" href="' + backTo + '" aria-label="Back">' + icon('left', 22) + '</a>' :
+        '<button class="circle glass press" data-go-settings aria-label="Settings">' + App.avatarHtml() + '</button>') + '</div>' +
+      '<div class="nb-title">' + h(title) + '</div>' +
+      '<div class="nb-r"><button class="circle glass press" id="top-sync" data-go-sync aria-label="Sync status"></button></div>';
+    const gs = nav.querySelector('[data-go-settings]'); if (gs) gs.onclick = () => App.go('settings');
+    nav.querySelector('[data-go-sync]').onclick = () => App.go('settings', 'sync');
     App.renderSync();
     const view = document.getElementById('view');
-    view.innerHTML = scr.render();
+    view.innerHTML = '<div class="large-title"><div style="min-width:0"><h1>' + h(title) + '</h1>' + (sub ? '<div class="lt-sub">' + h(sub) + '</div>' : '') + '</div>' + (showMonth ? App.monthSwitcher() : '') + '</div>' + scr.render();
+    App.bindMonthSwitcher(view.querySelector('.large-title'));
     if (scr.mount) scr.mount(view);
+    App.onScroll();
   };
+  App.onScroll = () => { document.body.classList.toggle('scrolled', window.scrollY > 34); };
+  window.addEventListener('scroll', App.onScroll, { passive: true });
 
   /* ---------------- Lock / sign-in ---------------- */
   App.lockScreen = (mode) => {
@@ -335,12 +333,12 @@
     const title = mode === 'unlock' ? (name ? 'Hi, ' + name : 'Welcome back') : 'Sign in';
     const sub = mode === 'unlock' ? 'Enter your 6-digit code' : 'Enter your 6-digit code to load your budget';
     app.innerHTML = '<div class="lock"><div class="lock-card">' +
-      '<div class="avatar-xl">' + (Store.hasData ? App.avatarHtml() : '<div class="avatar">' + icon('wallet', 32) + '</div>') + '</div>' +
+      '<div class="avatar-xl">' + (Store.hasData ? App.avatarHtml() : '<div class="avatar" style="background:var(--accent)">' + icon('wallet', 34) + '</div>') + '</div>' +
       '<h1>' + h(title) + '</h1><p>' + sub + '</p>' +
       (notConfigured ? '<div class="notice warn" style="margin-top:20px"><b>One step left.</b> Paste your Apps Script <b>/exec</b> link into <b>config.js</b> (apiUrl), then upload the folder again. See SETUP-GUIDE.md, step 3.</div>' :
       '<div class="pin-dots" id="dots">' + '<i></i>'.repeat(6) + '</div><div class="pin-msg" id="pinmsg"></div>' +
-      '<div class="keypad">' + [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => '<button data-n="' + n + '">' + n + '</button>').join('') +
-      '<button class="fn" data-fn="help">' + (mode === 'unlock' ? 'Sign out' : '') + '</button><button data-n="0">0</button><button class="fn" data-fn="del" aria-label="Delete">' + icon('backspace', 24) + '</button></div>') +
+      '<div class="keypad">' + [[1, ''], [2, 'ABC'], [3, 'DEF'], [4, 'GHI'], [5, 'JKL'], [6, 'MNO'], [7, 'PQRS'], [8, 'TUV'], [9, 'WXYZ']].map((n) => '<button data-n="' + n[0] + '">' + n[0] + '<small>' + (n[1] || '&nbsp;') + '</small></button>').join('') +
+      '<button class="fn" data-fn="help">' + (mode === 'unlock' ? 'Sign out' : '') + '</button><button data-n="0">0<small>&nbsp;</small></button><button class="fn" data-fn="del" aria-label="Delete">Delete</button></div>') +
       '</div></div>';
     if (notConfigured) return;
     let pin = '', busy = false;
@@ -459,17 +457,16 @@
         '<button class="chip" data-d="' + today + '">Today</button><button class="chip" data-d="' + yest + '">Yesterday</button>' +
         '<input class="input sm" type="date" id="sp-date" value="' + h(s.date) + '" style="flex:1;min-width:150px"></div></div>' +
       '<div class="pin-msg" id="sp-err" style="text-align:center"></div>';
-    const foot = (isEdit ? '<button class="btn danger" data-del>' + icon('trash', 18) + 'Delete</button>' : '<button class="btn" data-again>Save &amp; add another</button>') +
-      '<button class="btn primary" data-save>' + (isEdit ? 'Save changes' : 'Save') + '</button>';
+    const foot = isEdit ? '<button class="btn danger" data-del>' + icon('trash', 18) + 'Delete spend</button>' : '<button class="btn" data-again>Save &amp; add another</button>';
 
     App.sheet({
-      title: isEdit ? 'Edit spend' : 'Add spend', body, foot,
+      title: isEdit ? 'Edit spend' : 'New spend', body, foot, okAttr: 'data-save',
       onMount(el, api) {
         const $ = (q) => el.querySelector(q);
         const drawCats = () => {
           const list = showAll ? cats : cats.slice(0, App.isDesktop() ? 12 : 8);
           if (!showAll && s.catId && !list.some((c) => c.id === s.catId)) { const c = App.cat(s.catId); if (c) list[list.length - 1] = c; }
-          $('#sp-cats').innerHTML = list.map((c) => '<button type="button" class="cat-opt ' + (c.id === s.catId ? 'on' : '') + '" data-c="' + h(c.id) + '">' + catIcon(c.icon, 20) + '<span>' + h(c.name) + '</span></button>').join('');
+          $('#sp-cats').innerHTML = list.map((c) => '<button type="button" class="cat-opt ' + (c.id === s.catId ? 'on' : '') + '" data-c="' + h(c.id) + '"><span class="cat-ic">' + catIcon(c.icon, 22) + '</span><span>' + h(c.name) + '</span></button>').join('');
           $('#sp-more').textContent = showAll ? 'Show fewer' : 'All categories (' + cats.length + ')';
           $('#sp-cats').querySelectorAll('[data-c]').forEach((b) => (b.onclick = () => { s.catId = b.dataset.c; catTouched = true; drawCats(); }));
         };

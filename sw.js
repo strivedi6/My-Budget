@@ -1,6 +1,6 @@
 /* Service worker: keeps a copy of the app on the device so it opens instantly and works offline.
  * Raise VERSION whenever you upload a new version (match appVersion in config.js). */
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const CACHE = 'mybudget-' + VERSION;
 const SHELL = [
   './',
@@ -15,7 +15,6 @@ const SHELL = [
   './settings.js',
   './manifest.webmanifest',
   './vendor/chart.umd.min.js',
-  './fonts/manrope.woff2',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png'

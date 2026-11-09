@@ -4,15 +4,19 @@
   const { h, fmt, fmt2 } = App;
   const CFG = window.APP_CONFIG || {};
   const GROUPS = [['fixed', 'Fixed', 'Same every month: rent, loans'], ['musthave', 'Must have', 'Needed but varies: groceries, petrol'], ['optional', 'Optional', 'Nice to have: dining, travel, gifts']];
-  const ACCENTS = [['amber', '#E0A21F'], ['emerald', '#2BAA77'], ['sky', '#3C82EB'], ['violet', '#8A63F0'], ['rose', '#E2507A'], ['orange', '#EC7A2A']];
-  const back = (to) => '<a class="back-link" href="#/settings' + (to ? '/' + to : '') + '">' + icon('left', 18) + 'Settings</a>';
-  const li = (href, ic, label, val, extra) => '<a class="li" href="' + href + '" style="text-decoration:none;color:inherit"' + (extra || '') + '><span class="cat-ic sm acc">' + icon(ic, 16) + '</span><span class="main-t"><div class="t1">' + label + '</div></span>' + (val ? '<span class="val">' + val + '</span>' : '') + icon('right', 16).replace('class="ic"', 'class="ic chev"') + '</a>';
-  const btnLi = (attr, ic, label, val, danger) => '<button class="li" ' + attr + '><span class="cat-ic sm ' + (danger ? '' : 'acc') + '"' + (danger ? ' style="color:var(--neg)"' : '') + '>' + icon(ic, 16) + '</span><span class="main-t"><div class="t1"' + (danger ? ' style="color:var(--neg)"' : '') + '>' + label + '</div></span>' + (val ? '<span class="val">' + val + '</span>' : '') + '</button>';
+  const ACCENTS = [['blue', '#0088FF'], ['amber', '#FF8D28'], ['emerald', '#34C759'], ['violet', '#6155F5'], ['rose', '#FF2D55'], ['teal', '#00C3D0']];
+  const TONE = { calendar: '--red', tag: '--orange', file: '--blue', palette: '--indigo', lock: '--gray', phone: '--blue', cloud: '--teal', cloudOff: '--orange', layers: '--green', info: '--gray', refresh: '--blue', download: '--green', upload: '--blue', trash: '--red', logout: '--red', sheet: '--green', user: '--gray' };
+  const tile = (ic, danger) => '<span class="cat-ic sm" style="--c:var(' + (danger ? '--red' : (TONE[ic] || '--accent')) + ')">' + icon(ic, 16) + '</span>';
+  const chev = '<svg class="ic chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+  const back = () => '';
+  const li = (href, ic, label, val, extra) => '<a class="li" href="' + href + '"' + (extra || '') + '>' + tile(ic) + '<span class="main-t"><div class="t1">' + label + '</div></span>' + (val || val === 0 ? '<span class="val">' + val + '</span>' : '') + chev + '</a>';
+  const btnLi = (attr, ic, label, val, danger) => '<button class="li' + (danger ? ' danger' : '') + '" ' + attr + '>' + tile(ic, danger) + '<span class="main-t"><div class="t1">' + label + '</div></span>' + (val ? '<span class="val">' + val + '</span>' : '') + '</button>';
 
   const PAGES = {};
   App.screens.settings = {
-    title: () => ({ '': 'Settings', profile: 'Profile & income', month: App.isDesktop() ? 'Month setup' : 'Month', categories: 'Categories', appearance: 'Appearance', security: 'Security', data: 'Backup & data', sync: 'Sync', install: 'Install the app' })[App.ui.sub] || 'Settings',
+    title: () => ({ '': 'Settings', profile: 'Profile & Income', month: 'Month Setup', categories: 'Categories', appearance: 'Appearance', security: 'Security', data: 'Backup & Data', sync: 'Sync', install: 'Install App' })[App.ui.sub] || 'Settings',
     month: () => App.ui.sub === 'month',
+    back: () => (App.ui.sub ? '#/settings' : ''),
     render() { return (PAGES[App.ui.sub] || PAGES['']).render(); },
     mount(view) { const p = PAGES[App.ui.sub] || PAGES['']; if (p.mount) p.mount(view); }
   };
@@ -38,7 +42,7 @@
           li('#/settings/sync', Store.status === 'offline' || Store.status === 'error' ? 'cloudOff' : 'cloud', 'Sync & Google Sheet', h(sync.text)) +
           li('#/settings/data', 'layers', 'Backup, import & reset', '') +
         '</div>' +
-        '<div class="section-title">About</div><div class="menu"><div class="li"><span class="cat-ic sm acc">' + icon('info', 16) + '</span><span class="main-t"><div class="t1">' + h(CFG.appName || 'My Budget') + '</div><div class="t2">Version ' + h(CFG.appVersion || '') + ' · ' + Store.state.spends.length + ' spends saved</div></span></div>' +
+        '<div class="section-title">About</div><div class="menu"><div class="li">' + tile('info') + '<span class="main-t"><div class="t1">' + h(CFG.appName || 'My Budget') + '</div><div class="t2">Version ' + h(CFG.appVersion || '') + ' · ' + Store.state.spends.length + ' spends saved</div></span></div>' +
           btnLi('data-lock', 'lock', 'Lock now', '') + '</div>' +
         '</div></div>';
     },
@@ -181,7 +185,7 @@
         '<div class="field"><span>Group</span>' + seg('c-group', GROUPS.map((g) => [g[0], g[1]]), c.group) + '</div>' +
         '<div class="field"><span>Budget</span>' + seg('c-kind', [['budgeted', 'Monthly budget'], ['nonbudgeted', 'Not budgeted']], c.kind) + '</div>' +
         '<label class="field" id="c-budget-f"><span>Monthly budget (' + h(App.cur) + ')</span><input class="input" id="c-budget" inputmode="decimal" value="' + h(c.budget || '') + '" placeholder="0"><small>Counted as planned spending in months with nothing logged in this category.</small></label>',
-      foot: (isNew ? '' : '<button class="btn danger" data-del>' + icon('trash', 18) + 'Delete</button>') + '<button class="btn primary" data-save>' + (isNew ? 'Add category' : 'Save') + '</button>',
+      foot: isNew ? '' : '<button class="btn danger" data-del>' + icon('trash', 18) + 'Delete category</button>', okAttr: 'data-save',
       onMount(el, api) {
         const segBind = (id, key, after) => el.querySelectorAll('#' + id + ' button').forEach((b) => (b.onclick = () => { c[key] = b.dataset.v; el.querySelectorAll('#' + id + ' button').forEach((x) => x.classList.toggle('on', x === b)); if (after) after(); }));
         const vis = () => { el.querySelector('#c-owner-f').style.display = c.type === 'personal' ? '' : 'none'; el.querySelector('#c-budget-f').style.display = c.kind === 'budgeted' ? '' : 'none'; };
@@ -247,7 +251,7 @@
       v.querySelector('#chg').onclick = () => App.sheet({
         title: 'Change your code',
         body: '<label class="field"><span>Current code</span><input class="input" id="p0" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></label><label class="field"><span>New 6-digit code</span><input class="input" id="p1" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password"></label><label class="field"><span>New code again</span><input class="input" id="p2" type="password" inputmode="numeric" maxlength="6"></label><div class="pin-msg" id="pm"></div>',
-        foot: '<button class="btn primary" data-ok>Change code</button>',
+        okAttr: 'data-ok',
         onMount(el, api) {
           el.querySelector('[data-ok]').onclick = async () => {
             const [a, b, c2] = ['#p0', '#p1', '#p2'].map((q) => el.querySelector(q).value.trim()); const pm = el.querySelector('#pm');
@@ -280,10 +284,10 @@
   PAGES.sync = {
     render() {
       const i = App.syncInfo();
-      return back() + '<div class="grid"><section class="card c6"><div class="row" style="gap:14px;margin-bottom:16px"><span class="cat-ic acc" style="width:48px;height:48px;border-radius:15px">' + icon(i.icon, 24) + '</span><div><div style="font-weight:780;font-size:17px">' + h(i.text) + '</div><div class="muted" style="font-size:13px">' + (Store.lastSync ? 'Last saved ' + new Date(Store.lastSync).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '') + '</div></div></div>' +
+      return back() + '<div class="grid"><section class="card c6"><div class="row" style="gap:14px;margin-bottom:16px"><span class="cat-ic" style="--c:var(--teal);width:52px;height:52px;border-radius:14px">' + icon(i.icon, 28) + '</span><div><div style="font-weight:780;font-size:17px">' + h(i.text) + '</div><div class="muted" style="font-size:13px">' + (Store.lastSync ? 'Last saved ' + new Date(Store.lastSync).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '') + '</div></div></div>' +
         (Store.lastError && Store.status !== 'idle' ? '<div class="notice warn" style="margin-bottom:14px">' + h(Store.lastError) + '</div>' : '') +
         '<div class="menu">' + btnLi('id="sn"', 'refresh', 'Sync now', Store.outbox.length ? Store.outbox.length + ' waiting' : '') + btnLi('id="rl"', 'download', 'Reload everything from the Sheet', '') +
-        (CFG.sheetUrl ? '<a class="li" href="' + h(CFG.sheetUrl) + '" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="cat-ic sm acc">' + icon('sheet', 16) + '</span><span class="main-t"><div class="t1">Open the Google Sheet</div></span></a>' : '') + '</div>' +
+        (CFG.sheetUrl ? '<a class="li" href="' + h(CFG.sheetUrl) + '" target="_blank" rel="noopener">' + tile('sheet') + '<span class="main-t"><div class="t1">Open the Google Sheet</div></span></a>' : '') + '</div>' +
         '<p class="muted" style="font-size:13px;margin:16px 0 0">Every change is saved on this device first, then sent to your Google Sheet. Without internet, changes wait here and go through when you are back online. Clearing the browser cache never loses data: just sign in again.</p></section></div>';
     },
     mount(v) {
@@ -453,8 +457,9 @@
       body: '<div class="field"><span>Include</span>' + opts.map((o) => '<label class="row" style="padding:7px 0;font-weight:650;gap:12px"><input type="checkbox" data-o="' + o[0] + '" checked style="width:18px;height:18px;accent-color:var(--accent)">' + o[1] + '</label>').join('') + '</div>' +
         '<label class="field"><span>Notes (optional)</span><textarea class="input" id="rnotes" placeholder="Anything to remember about this month"></textarea></label>' +
         '<p class="muted" style="font-size:12.5px;margin:0">Downloads a page you can open, print or save as PDF.</p>',
-      foot: '<button class="btn primary" data-go>' + icon('download', 18) + 'Download report</button>',
+      foot: '<button class="btn primary" data-go>' + icon('download', 18) + 'Download report</button>', okAttr: 'data-go2',
       onMount(el, api) {
+        el.querySelector('[data-go2]').onclick = () => el.querySelector('[data-go]').click();
         el.querySelector('[data-go]').onclick = () => {
           const on = {}; el.querySelectorAll('[data-o]').forEach((c) => { on[c.dataset.o] = c.checked; });
           App.download('Budget-report-' + key + '.html', buildReport(key, on, el.querySelector('#rnotes').value), 'text/html;charset=utf-8');

@@ -56,7 +56,8 @@
 
   /* ================= HOME ================= */
   App.screens.home = {
-    title: () => (App.isDesktop() ? 'Overview' : 'Home'),
+    title: 'Summary',
+    subtitle: () => 'Hi ' + App.first1() + ' · ' + Calc.monthLabel(App.ui.month),
     render() {
       const key = App.ui.month, m = App.calc(key);
       const cur = key === Calc.currentMk(), past = key < Calc.currentMk();
@@ -205,6 +206,7 @@
 
   App.screens.spends = {
     title: 'Spends',
+    subtitle: () => { const f = App.ui.spends; return f.scope === 'month' ? Calc.monthLabel(App.ui.month) : f.scope === 'year' ? 'All of ' + App.ui.month.slice(0, 4) : 'All time'; },
     render() {
       const f = App.ui.spends, key = App.ui.month;
       const list = filteredSpends();
@@ -227,11 +229,11 @@
 
       const usedCats = Store.state.categories.filter((c) => Store.state.spends.some((s) => s.catId === c.id)).sort((a, b) => a.name.localeCompare(b.name));
       const toolbar = '<div class="toolbar">' +
-        '<div class="seg" id="scope">' + [['month', 'Month'], ['year', 'Year'], ['all', 'All']].map((s) => '<button data-s="' + s[0] + '" class="' + (f.scope === s[0] ? 'on' : '') + '">' + s[1] + '</button>').join('') + '</div>' +
-        '<div class="search grow">' + icon('search', 18) + '<input class="input sm" id="q" type="search" placeholder="Search merchant, category or amount" value="' + h(f.q) + '"></div>' +
+        '<div class="search grow">' + icon('search', 18) + '<input class="input sm" id="q" type="search" placeholder="Search" value="' + h(f.q) + '"></div>' +
+        '<div class="seg full" id="scope" style="flex:1 1 100%">' + [['month', 'Month'], ['year', 'Year'], ['all', 'All']].map((s) => '<button data-s="' + s[0] + '" class="' + (f.scope === s[0] ? 'on' : '') + '">' + s[1] + '</button>').join('') + '</div>' +
         '<select class="input sm" id="fcat" style="width:auto;flex:1 1 150px"><option value="">All categories</option>' + usedCats.map((c) => '<option value="' + h(c.id) + '" ' + (f.cat === c.id ? 'selected' : '') + '>' + h(c.name) + '</option>').join('') + '</select>' +
         '<select class="input sm" id="fpaid" style="width:auto;flex:1 1 110px"><option value="">Anyone</option><option value="1" ' + (f.paid === '1' ? 'selected' : '') + '>' + h(App.first1()) + '</option><option value="2" ' + (f.paid === '2' ? 'selected' : '') + '>' + h(App.first2()) + '</option></select>' +
-        '<button class="btn sm ghost" id="sp-tools">' + icon('more', 18) + '<span class="hide-m">CSV</span></button>' +
+        '<button class="icon-btn" id="sp-tools" aria-label="CSV import and export" style="width:36px;height:36px">' + icon('more', 18) + '</button>' +
         '</div>';
 
       const stats = '<div class="stats" style="margin-bottom:14px">' +
@@ -247,15 +249,15 @@
       shown.forEach((s) => {
         if (s.date !== lastDate) {
           if (lastDate) groups += '</div>';
-          groups += '<div class="day-h"><span>' + h(App.dateLabel(s.date, f.scope === 'month' ? undefined : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })) + '</span><span class="num">' + fmt2(dayTot[s.date]) + '</span></div><div class="list">';
+          groups += '<div class="day-h"><span>' + h(App.dateLabel(s.date, f.scope === 'month' ? { weekday: 'long', day: 'numeric', month: 'long' } : { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })) + '</span><span class="num">' + fmt2(dayTot[s.date]) + '</span></div><div class="list day-group">';
           lastDate = s.date;
         }
         groups += spendLi(s);
       });
       if (lastDate) groups += '</div>';
       const more = list.length > shown.length ? '<button class="btn block ghost" id="more" style="margin-top:12px">Show more (' + (list.length - shown.length) + ')</button>' : '';
-      const listCard = '<section class="card c8"><div class="card-h"><h3>' + h(scopeLbl) + '</h3><button class="btn sm primary" data-add3>' + icon('plus', 16) + 'Add</button></div>' +
-        (list.length ? groups + more : '<div class="empty">' + icon('search', 32) + (f.q || f.cat || f.paid ? 'No spends match these filters.' : 'No spends logged for ' + h(scopeLbl) + '.') + '</div>') + '</section>';
+      const listCard = '<section class="c8" style="margin-top:-12px">' +
+        (list.length ? groups + more : '<div class="card empty" style="margin-top:12px">' + icon('search', 40) + (f.q || f.cat || f.paid ? 'No spends match these filters.' : 'No spends logged for ' + h(scopeLbl) + '.') + '<br><button class="btn sm primary" data-add3 style="margin-top:14px">' + icon('plus', 16) + 'Add a spend</button></div>') + '</section>';
 
       // Side: budget vs actual + by category
       const m = App.calc(key);
@@ -275,7 +277,7 @@
       view.querySelector('#fcat').onchange = (e) => { f.cat = e.target.value; App.renderView(); };
       view.querySelector('#fpaid').onchange = (e) => { f.paid = e.target.value; App.renderView(); };
       const more = view.querySelector('#more'); if (more) more.onclick = () => { f.limit += 200; App.renderView(); };
-      view.querySelector('[data-add3]').onclick = () => App.spendSheet();
+      const a3 = view.querySelector('[data-add3]'); if (a3) a3.onclick = () => App.spendSheet();
       view.querySelector('#sp-tools').onclick = () => App.csvMenu();
       const byCat = {}; filteredSpends().forEach((s) => { byCat[s.catId] = (byCat[s.catId] || 0) + Calc.num(s.amount); });
       const items = Object.entries(byCat).map(([id, v]) => ({ name: (App.cat(id) || { name: 'Unknown' }).name, v })).sort((a, b) => b.v - a.v);
@@ -288,9 +290,10 @@
   const ITABS = [['pnl', 'P&L'], ['savings', 'Savings'], ['forecast', 'Forecast'], ['compare', 'Compare']];
   App.screens.insights = {
     title: 'Insights',
+    subtitle: () => (App.ui.insights === 'pnl' || App.ui.insights === 'compare' ? Calc.monthLabel(App.ui.month) : 'Year ' + App.ui.month.slice(0, 4)),
     render() {
       const t = App.ui.insights;
-      const seg = '<div class="seg" id="itabs" style="margin-bottom:16px">' + ITABS.map((x) => '<button data-i="' + x[0] + '" class="' + (t === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>';
+      const seg = '<div class="seg full" id="itabs" style="margin-bottom:18px">' + ITABS.map((x) => '<button data-i="' + x[0] + '" class="' + (t === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>';
       return seg + INS[t].render();
     },
     mount(view) {
