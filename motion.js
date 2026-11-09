@@ -253,11 +253,20 @@
   /* ---------- Pull down to refresh (elastic) ---------- */
   const ptr = document.createElement('div');
   ptr.id = 'ptr';
-  // Accent loader: three balls in a triangle, each with a soft reflection. They appear one by one as you pull,
-  // then hop corner to corner, squashing a little as they land.
-  ptr.innerHTML = '<div class="dots3">' + [0, 1, 2].map(() => '<i><s></s><b></b></i>').join('') + '</div>';
+  // Gooey accent loader: three balls circle the triangle, melt into one stretchy blob, then split again.
+  // The "goo" is an SVG filter (blur + sharpen the edge), with a soft coloured reflection underneath.
+  ptr.innerHTML = '<svg class="goo" viewBox="-32 -32 64 64" width="64" height="64" aria-hidden="true"><defs>' +
+    '<filter id="ptr-goo" x="-60%" y="-60%" width="220%" height="240%" color-interpolation-filters="sRGB">' +
+    '<feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/>' +
+    '<feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="g"/>' +
+    '<feOffset in="g" dy="7" result="o"/><feGaussianBlur in="o" stdDeviation="2.2" result="ob"/>' +
+    '<feComponentTransfer in="ob" result="sh"><feFuncA type="linear" slope=".28"/></feComponentTransfer>' +
+    '<feMerge><feMergeNode in="sh"/><feMergeNode in="g"/></feMerge></filter></defs>' +
+    '<g filter="url(#ptr-goo)"><g class="blob"><g class="orbit">' +
+    [0, 120, 240].map((a, i) => '<g class="arm" style="--a:' + a + 'deg"><circle class="ball b' + i + '" r="5.5"/></g>').join('') +
+    '</g></g></g></svg>';
   document.body.appendChild(ptr);
-  const tri = ptr.querySelector('.dots3'), dots3 = ptr.querySelectorAll('.dots3 i');
+  const dots3 = ptr.querySelectorAll('.ball');
   const MAX = 150, TRIGGER = 66, HOLD = 58;
   const rubber = (dy) => MAX * (1 - Math.exp(-dy / 270));
   let startY = null, pulling = false, dist = 0, busy = false;
