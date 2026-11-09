@@ -253,9 +253,10 @@
   /* ---------- Pull down to refresh (elastic) ---------- */
   const ptr = document.createElement('div');
   ptr.id = 'ptr';
-  ptr.innerHTML = '<div class="spinner">' + Array.from({ length: 8 }, (_, i) => '<i style="transform:rotate(' + i * 45 + 'deg)"></i>').join('') + '</div>';
+  // Accent loader: three dots in a triangle. They appear one by one as you pull, then orbit and breathe.
+  ptr.innerHTML = '<div class="dots3"><i></i><i></i><i></i></div>';
   document.body.appendChild(ptr);
-  const spokes = ptr.querySelectorAll('i');
+  const tri = ptr.querySelector('.dots3'), dots3 = ptr.querySelectorAll('.dots3 i');
   const MAX = 150, TRIGGER = 66, HOLD = 58;
   const rubber = (dy) => MAX * (1 - Math.exp(-dy / 270));
   let startY = null, pulling = false, dist = 0, busy = false;
@@ -268,7 +269,11 @@
     ptr.style.transition = withTransition ? 'opacity .3s, transform .6s ' + SPRING : 'none';
     ptr.style.opacity = d > 4 ? Math.min(1, p * 1.4) : 0;
     ptr.style.transform = 'translate(-50%, ' + Math.min(d * 0.55, 34) + 'px) scale(' + (0.6 + 0.4 * p) + ')';
-    if (!busy) spokes.forEach((s, i) => { s.style.opacity = i < Math.round(p * 8) ? 1 : 0.15; });
+    if (!busy) {
+      dots3.forEach((dt, i) => { const q = Math.max(0, Math.min(1, p * 3 - i)); dt.style.opacity = q; dt.style.scale = String(0.4 + 0.6 * q); });
+      tri.style.rotate = (p * 240) + 'deg';
+      ptr.classList.toggle('ready', p >= 1);
+    }
     // Large title stretches a little, like iOS.
     const lt = v.querySelector('.large-title h1');
     if (lt) { lt.style.transition = v.style.transition; lt.style.transformOrigin = 'left bottom'; lt.style.transform = d ? 'scale(' + (1 + Math.min(d, 120) / 1400) + ')' : ''; }
@@ -298,11 +303,13 @@
       busy = true;
       App.haptic();
       setPull(HOLD, true);
-      ptr.classList.add('spin'); spokes.forEach((s) => { s.style.opacity = ''; });
+      ptr.classList.remove('ready'); ptr.classList.add('spin'); dots3.forEach((dt) => { dt.style.opacity = ''; dt.style.scale = ''; }); tri.style.rotate = '';
       const t0 = Date.now();
       try { await Store.refresh(); } catch (err) {}
       await new Promise((r) => setTimeout(r, Math.max(0, 650 - (Date.now() - t0))));
-      ptr.classList.remove('spin');
+      ptr.classList.remove('spin'); ptr.classList.add('done');
+      await new Promise((r) => setTimeout(r, 260));
+      ptr.classList.remove('done');
       busy = false;
       setPull(0, true);
       App.toast(Store.status === 'idle' ? 'Up to date' : (Store.outbox.length ? 'Offline: changes will sync later' : (Store.lastError || 'Could not reach the Sheet')));
