@@ -274,7 +274,7 @@
       '<button data-mnext aria-label="Next month">' + icon('right', 18) + '</button></div>';
   };
   App.bindMonthSwitcher = (root) => {
-    const set = (k) => { App.ui.month = k; App.renderView(); };
+    const set = (k) => { if (App.slideMonth) App.slideMonth(k > App.ui.month ? 1 : -1); App.ui.month = k; App.renderView(); };
     root.querySelectorAll('[data-mprev]').forEach((b) => (b.onclick = () => set(Calc.addMonths(App.ui.month, -1))));
     root.querySelectorAll('[data-mnext]').forEach((b) => (b.onclick = () => set(Calc.addMonths(App.ui.month, 1))));
     root.querySelectorAll('[data-mpick]').forEach((b) => (b.onclick = () => App.monthPicker()));
@@ -292,7 +292,7 @@
         }).join('') + '</div>' +
         '<button class="btn block" style="margin-top:14px" data-k="' + Calc.currentMk() + '">Go to this month</button>';
       body.querySelectorAll('[data-y]').forEach((b) => (b.onclick = () => { year += Number(b.dataset.y); draw(el, api); }));
-      body.querySelectorAll('[data-k]').forEach((b) => (b.onclick = () => { App.ui.month = b.dataset.k; api.close(); App.renderView(); }));
+      body.querySelectorAll('[data-k]').forEach((b) => (b.onclick = () => { if (App.slideMonth && b.dataset.k !== App.ui.month) App.slideMonth(b.dataset.k > App.ui.month ? 1 : -1); App.ui.month = b.dataset.k; api.close(); App.renderView(); }));
     };
     App.sheet({ title: 'Choose month', onMount: draw });
   };

@@ -104,7 +104,7 @@ body.scrolled .navbar .nb-title { opacity: 1; transform: none; }
 .tab { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 600; letter-spacing: .1px; color: var(--text); border-radius: 999px; }
 .tab .ic { width: 25px; height: 25px; }
 .tab.on { color: var(--accent); }
-.tab-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; border-radius: 999px; background: var(--fill-3); transition: transform .45s var(--spring), width .3s; }
+.tab-pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 4); border-radius: 999px; background: var(--fill-3); transform-origin: center; will-change: transform; }
 .fab { pointer-events: auto; width: var(--tab-h); height: var(--tab-h); border-radius: 50%; display: grid; place-items: center; color: var(--accent); }
 .fab .ic { width: 28px; height: 28px; stroke-width: 2.3; }
 
@@ -257,7 +257,7 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* ---------- Sheets (iOS 27 floating sheet) ---------- */
 .sheet-back { position: fixed; inset: 0; z-index: 60; background: var(--dim); opacity: 0; transition: opacity .35s; }
 .sheet-back.in { opacity: 1; }
-.sheet { position: fixed; z-index: 61; left: 8px; right: 8px; bottom: calc(8px + var(--safe-b) * .4); max-width: 704px; margin: 0 auto; max-height: calc(100dvh - var(--safe-t) - 24px); display: flex; flex-direction: column;
+.sheet { position: fixed; z-index: 61; left: 8px; right: 8px; bottom: calc(8px + var(--safe-b) * .4); max-width: 704px; margin: 0 auto; max-height: calc(100dvh - var(--safe-t) - 58px); display: flex; flex-direction: column;
   background: var(--elev); border-radius: 38px; box-shadow: 0 20px 60px rgba(0, 0, 0, .25); transform: translateY(110%); transition: transform .5s var(--ease); overflow: hidden; }
 :root[data-theme="dark"] .sheet { background: #1C1C1E; }
 .sheet.in { transform: none; }
@@ -339,7 +339,7 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .legend .lg span:nth-child(2) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .legend .lg b { font-weight: 500; color: var(--text-2); }
 .empty { text-align: center; padding: 28px 10px; color: var(--text-2); font-size: 15px; letter-spacing: -0.23px; }
-.empty .ic { margin: 0 auto 10px; color: var(--text-4); width: 40px; height: 40px; }
+.empty > .ic { margin: 0 auto 10px; color: var(--text-4); width: 40px; height: 40px; }
 .delta { font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 1px; }
 
 .hide-m { display: none !important; }
@@ -366,3 +366,42 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .cat-ic:has([data-tone="7"]) { --c: var(--purple); }
 .cat-ic:has([data-tone="8"]) { --c: var(--mint); }
 .cat-ic:has([data-tone="9"]) { --c: var(--brown); }
+
+/* ---------- Motion ---------- */
+.seg button { position: relative; z-index: 1; }
+.seg button.on.seg-hold { background: transparent; box-shadow: none; }
+.seg-ghost { position: absolute; z-index: 0; top: 2px; bottom: 2px; border-radius: 999px; background: var(--surface); box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 0 0 .5px rgba(0, 0, 0, .04); pointer-events: none; transform-origin: center; }
+:root[data-theme="dark"] .seg-ghost { background: #636366; }
+.reveal { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity .5s var(--ease), transform .75s cubic-bezier(.34, 1.2, .64, 1); }
+.reveal.in { opacity: 1; transform: none; }
+.tab { transition: color .25s; }
+.btn, .chip, .cat-opt, .seg button, .circle, .fab, .monthsw button, .icon-btn, .swatch, .icon-grid button { transition: transform .4s cubic-bezier(.34, 1.4, .64, 1), background .2s, color .2s, opacity .2s; }
+.chip:active, .cat-opt:active, .seg button:active, .icon-btn:active, .swatch:active, .icon-grid button:active, .monthsw button:active { transform: scale(.92); }
+.circle:active, .fab:active { transform: scale(.9); }
+.li { transition: opacity .15s, background .2s; }
+.card, .stat, .menu, .day-group { transform-origin: center top; }
+#ptr { position: fixed; z-index: 15; left: 50%; top: calc(var(--safe-t) + 58px); transform: translate(-50%, 0) scale(.6); opacity: 0; pointer-events: none; }
+#ptr .spinner { position: relative; width: 28px; height: 28px; }
+#ptr .spinner i { position: absolute; left: 50%; top: 0; width: 3px; height: 8px; margin-left: -1.5px; border-radius: 2px; background: var(--text-2); transform-origin: 50% 14px; transition: opacity .12s; }
+#ptr.spin .spinner { animation: ptrspin .8s steps(8) infinite; }
+#ptr.spin .spinner i:nth-child(1) { opacity: 1; } #ptr.spin .spinner i:nth-child(2) { opacity: .88; } #ptr.spin .spinner i:nth-child(3) { opacity: .76; } #ptr.spin .spinner i:nth-child(4) { opacity: .64; }
+#ptr.spin .spinner i:nth-child(5) { opacity: .52; } #ptr.spin .spinner i:nth-child(6) { opacity: .4; } #ptr.spin .spinner i:nth-child(7) { opacity: .28; } #ptr.spin .spinner i:nth-child(8) { opacity: .18; }
+@keyframes ptrspin { to { transform: rotate(-360deg); } }
+.sheet.in .sh-b > * { animation: rise .5s var(--ease) backwards; }
+.sheet.in .sh-b > *:nth-child(2) { animation-delay: .03s; } .sheet.in .sh-b > *:nth-child(3) { animation-delay: .06s; } .sheet.in .sh-b > *:nth-child(4) { animation-delay: .09s; } .sheet.in .sh-b > *:nth-child(n+5) { animation-delay: .12s; }
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+.bar > i { transition: width .9s cubic-bezier(.34, 1.15, .64, 1); }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } }
+
+/* Roomier rows */
+.li { min-height: 58px; padding: 10px 0; }
+.li .t2 { margin-top: 3px; }
+.day-group { padding: 4px 16px; }
+.day-group .li { min-height: 72px; padding: 14px 0; gap: 14px; }
+.day-group .li .cat-ic { width: 38px; height: 38px; border-radius: 11px; }
+.day-group .li .cat-ic .ic { width: 21px; height: 21px; }
+.day-group .li + .li::before { left: 52px; }
+.day-group .li .amt { font-weight: 500; padding-left: 8px; }
+.day-h { padding: 30px 16px 10px; }
+.budget-row { padding: 14px 0; }
+.menu .li { min-height: 56px; }
