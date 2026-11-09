@@ -384,121 +384,91 @@
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    /* The six code dots are the animation, driven frame by frame:
-       - start: they run right along the row like a train and enter the ring from its right edge,
-         then the ring glides to the middle and turns;
-       - waiting: every 3 loops they blend into a new pattern (orbit, breathe, cluster, star, figure-8, wave);
-       - wrong code: the ring drifts left and the dots leave from its left edge back into the row like a train;
-       - right code: they melt together (softly blurred) into one glowing circle. */
+    /* The six code dots are the animation, driven frame by frame as one continuous motion:
+       - start: they flow down from their row into a ring centred below, already turning as they arrive;
+       - waiting: every 3 loops the ring cross-fades into a new pattern while both keep moving;
+       - wrong code: they peel off the ring one by one from the left and curve back into their places;
+       - right code: they drift to the middle of the screen while melting into one soft glow. */
     const ring = (() => {
-      const ds = Array.from(dots.children), N = ds.length;
+      const ds = Array.from(dots.children), N = ds.length, TAU = Math.PI * 2;
       const gap = () => ds[1].offsetLeft - ds[0].offsetLeft;
       const rowX = (i) => (i - (N - 1) / 2) * gap();
-      const TAU = Math.PI * 2;
-      const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-      let raf = 0, mode = '', cycle = false, last = 0, cur = [];
-      let R = 0, P = 0, cx = 0, D = 0, tMode = 0, pat = 0, tPat = 0, blendFrom = null, tBlend = 0, exitInfo = null, done = null;
-      const V = 210;   // train speed, px per second
+      const io = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+      const mix = (a, b, k) => ({ x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k, s: a.s + (b.s - a.s) * k });
+      const LOOP = 2.2, W = TAU / LOOP, CY = 118, XFADE = 1.6;
+      let R = 34, P = -Math.PI / 2, raf = 0, last = 0, t0 = 0, mode = '', cycle = false;
+      let pat = 0, next = -1, tPat = 0, tX = 0, tAct = 0, order = null, target = null, done = null, hook = null;
+      // Patterns, relative to the ring centre. P is a phase that always keeps turning, so nothing ever stops.
+      const slot = (i) => P + (N - 1 - i) * TAU / N;
       const PATS = [
-        { per: 1.6, f: (t, i) => ({ r: R, a: P + (N - 1 - i) * TAU / N, s: 0.8 + 0.2 * Math.sin(TAU * t / 1.2 + i) }) },                                  // orbit with a pulse wave
-        { per: 1.6, w: 0.6, f: (t, i) => ({ r: R * (1 + 0.3 * Math.sin(TAU * t / 1.6)), a: P + (N - 1 - i) * TAU / N, s: 1 - 0.18 * Math.sin(TAU * t / 1.6) }) }, // breathe
-        { per: 1.8, w: 1.2, f: (t, i) => ({ r: R, a: P + (N - 1 - i) * (TAU / N) * (0.62 + 0.38 * Math.cos(TAU * t / 1.8)), s: 1 }) },                     // cluster and spread
-        { per: 1.4, w: 0.7, f: (t, i) => ({ r: R * (1 + 0.34 * Math.sin(TAU * t / 1.4) * (i % 2 ? 1 : -1)), a: P + (N - 1 - i) * TAU / N, s: 1 }) },          // star
-        { per: 2.2, w: 0, xy: (t, i) => { const f = TAU * t / 2.2 + i * TAU / N, A = R * 1.7, d = 1 + Math.sin(f) ** 2; return { x: A * Math.cos(f) / d, y: A * Math.sin(f) * Math.cos(f) / d, s: 1 }; } }, // figure of eight
-        { per: 1.1, w: 0, xy: (t, i) => ({ x: (i - (N - 1) / 2) * 15, y: 10 * Math.sin(TAU * t / 1.1 - i * 0.75), s: 1 }) }                                // wave
+        (t, i) => ({ r: R, a: slot(i), s: 0.82 + 0.18 * Math.sin(TAU * t / 1.2 + i) }),                                        // orbit, pulse wave
+        (t, i) => ({ r: R * (1 + 0.28 * Math.sin(TAU * t / 1.8)), a: slot(i), s: 1 - 0.16 * Math.sin(TAU * t / 1.8) }),          // breathe
+        (t, i) => ({ r: R, a: P + (N - 1 - i) * (TAU / N) * (0.6 + 0.4 * Math.cos(TAU * t / 2.2)), s: 1 }),                    // cluster and spread
+        (t, i) => ({ r: R * (1 + 0.32 * Math.sin(TAU * t / 1.6) * (i % 2 ? 1 : -1)), a: slot(i), s: 1 }),                       // star
+        (t, i) => { const f = -P + i * TAU / N, A = R * 1.75, d = 1 + Math.sin(f) ** 2; return { x: A * Math.cos(f) / d, y: A * Math.sin(f) * Math.cos(f) / d, s: 1 }; }, // figure of eight
+        (t, i) => ({ x: (i - (N - 1) / 2) * 15, y: 11 * Math.sin(-P * 2 - i * 0.75), s: 1 })                                   // wave
       ];
-      const orbitAt = (c, i, r) => { const a = P + (N - 1 - i) * TAU / N; return { x: c + r * Math.cos(a), y: r * Math.sin(a), s: 1 }; };
-      const patPos = (k, t, i) => { const q = PATS[k]; if (q.xy) return q.xy(t, i); const o = q.f(t, i); return { x: o.r * Math.cos(o.a), y: o.r * Math.sin(o.a), s: o.s }; };
-      const apply = (pos) => {
-        cur = pos;
-        pos.forEach((p, i) => { ds[i].style.translate = (p.x - rowX(i)).toFixed(2) + 'px ' + p.y.toFixed(2) + 'px'; ds[i].style.scale = p.s.toFixed(3); });
+      const patAt = (k, t, i) => { const o = PATS[k](t, i); const p = o.r === undefined ? o : { x: o.r * Math.cos(o.a), y: o.r * Math.sin(o.a), s: o.s }; return { x: p.x, y: p.y + CY, s: p.s }; };
+      const live = (t, i) => {
+        const a = patAt(pat, t - tPat, i);
+        if (next < 0) return a;
+        return mix(a, patAt(next, t - tX, i), io((t - tX) / XFADE));
       };
-      const blendTo = (now, target) => {
-        if (!blendFrom) return target;
-        const k = Math.min(1, (now - tBlend) / 600);
-        if (k >= 1) { blendFrom = null; return target; }
-        const e = ease(k);
-        return target.map((p, i) => ({ x: blendFrom[i].x + (p.x - blendFrom[i].x) * e, y: blendFrom[i].y + (p.y - blendFrom[i].y) * e, s: blendFrom[i].s + (p.s - blendFrom[i].s) * e }));
-      };
-      const startBlend = (now) => { blendFrom = cur.map((p) => Object.assign({}, p)); tBlend = now; };
+      const row = (i) => ({ x: rowX(i), y: 0, s: 1 });
+      const apply = (pos) => pos.forEach((p, i) => { ds[i].style.translate = (p.x - rowX(i)).toFixed(2) + 'px ' + p.y.toFixed(2) + 'px'; ds[i].style.scale = p.s.toFixed(3); });
+      const finish = () => { cancelAnimationFrame(raf); raf = 0; mode = ''; const f = done; done = null; if (f) f(); };
       const frame = (now) => {
         const dt = Math.min(0.05, (now - last) / 1000); last = now;
-        const t = (now - tMode) / 1000;
+        const t = (now - t0) / 1000, ta = t - tAct;
+        P -= W * dt;
+        // pattern schedule (only while waiting): 3 loops each, then cross-fade into the next
+        if (next >= 0 && t - tX >= XFADE) { pat = next; tPat = tX; next = -1; }
+        if (cycle && next < 0 && t - tPat > LOOP * 3) { next = (pat + 1) % PATS.length; tX = t; }
+        if (!cycle && next < 0 && pat !== 0) { next = 0; tX = t; }
         let pos;
         if (mode === 'enter') {
-          // The train runs right along the row and turns up into the ring at its right edge.
-          D = t < 0.35 ? V * t * t / 0.7 : V * (t - 0.175);
-          const xR = rowX(N - 1), c = xR - R;
-          pos = ds.map((_, i) => {
-            const u = rowX(i) - xR + D;
-            if (u <= 0) return { x: xR + u, y: 0, s: 1 };
-            const a = -u / R; return { x: c + R * Math.cos(a), y: R * Math.sin(a), s: 1 };
-          });
-          if (rowX(0) - xR + D > 0) { // every dot is on the ring: hand over to the turning patterns
-            const a5 = -(D) / R; P = a5; cx = c;
-            mode = 'turn'; tMode = now; pat = 0; tPat = now; startBlend(now);
-          }
-        } else if (mode === 'turn') {
-          const q = PATS[pat]; P -= (q.w === undefined ? TAU / q.per : q.w * TAU / q.per) * dt;
-          cx += (0 - cx) * Math.min(1, dt * 4);            // the ring glides to the middle
-          const tp = (now - tPat) / 1000;
-          pos = blendTo(now, ds.map((_, i) => { const p = patPos(pat, tp, i); return { x: p.x + cx, y: p.y, s: p.s }; }));
-          if (cycle && tp > q.per * 3) { pat = (pat + 1) % PATS.length; tPat = now; startBlend(now); }
-          if (!cycle && pat !== 0) { pat = 0; tPat = now; startBlend(now); }
-        } else if (mode === 'toLeft') {
-          // Back to a plain orbit, drifting left until the ring's left edge meets the first dot's place.
-          P -= TAU / 1.6 * dt;
-          const cL = rowX(0) + R;
-          pos = blendTo(now, ds.map((_, i) => orbitAt(cL, i, R)));
-          if (!blendFrom) {
-            // Who leaves first: the dot closest (going round) to the left edge. It goes furthest along the row.
-            const dist = ds.map((_, i) => { const a = P + (N - 1 - i) * TAU / N; return { i, e: ((((a + Math.PI) % TAU) + TAU) % TAU) * R }; }).sort((x, y) => x.e - y.e);
-            exitInfo = { cL, P0: P, list: dist.map((o, rank) => ({ i: o.i, e: o.e, slot: rowX(N - 1 - rank) })) };
-            mode = 'exit'; tMode = now;
-          }
-        } else if (mode === 'exit') {
-          const De = V * 1.25 * t, { cL, P0, list } = exitInfo, xL = cL - R;
-          pos = [];
           let all = true;
-          list.forEach((o) => {
-            const v = De - o.e;
-            if (v < 0) { all = false; const a = P0 - De / R + (N - 1 - o.i) * TAU / N; pos[o.i] = { x: cL + R * Math.cos(a), y: R * Math.sin(a), s: 1 }; return; }
-            const L = o.slot - xL;
-            if (v < L) all = false;
-            const k = L > 0 ? Math.min(1, v / L) : 1;
-            pos[o.i] = { x: xL + L * (k < 0.8 ? k : 0.8 + 0.2 * Math.sin(((k - 0.8) / 0.2) * Math.PI / 2)), y: 0, s: 1 };
-          });
-          if (all) { // every place is filled again: snap each dot to its own place (they look identical)
-            ds.forEach((d) => { d.style.translate = ''; d.style.scale = ''; });
-            cancelAnimationFrame(raf); raf = 0; mode = ''; const f = done; done = null; if (f) f(); return;
-          }
+          pos = ds.map((_, i) => { const k = (ta - i * 0.07) / 0.9; if (k < 1) all = false; return mix(row(i), live(t, i), io(k)); });
+          if (all) mode = 'turn';
+        } else if (mode === 'turn') {
+          pos = ds.map((_, i) => live(t, i));
+        } else if (mode === 'exit') {
+          let all = true;
+          pos = ds.map((_, i) => { const k = (ta - order[i] * 0.09) / 0.8; if (k < 1) all = false; return mix(live(t, i), row(i), io(k)); });
+          if (all) { ds.forEach((d) => { d.style.translate = ''; d.style.scale = ''; }); return finish(); }
         } else if (mode === 'merge') {
-          pos = blendTo(now, ds.map(() => ({ x: cx, y: 0, s: 2.6 })));
-          if (!blendFrom) { cancelAnimationFrame(raf); raf = 0; apply(pos); const f = done; done = null; if (f) f(); return; }
+          let all = true;
+          pos = ds.map((_, i) => { const k = (ta - i * 0.04) / 0.75; if (k < 1) all = false; const e = io(k); const p = mix(live(t, i), target, e); p.s = 1 + 1.7 * e; return p; });
+          if (hook && ta > 0.72) { const h = hook; hook = null; h(); }
+          if (all) { apply(pos); return finish(); }
         }
         apply(pos);
         raf = requestAnimationFrame(frame);
       };
-      const run = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+      const start = (m) => { mode = m; tAct = (performance.now() - t0) / 1000; if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
       return {
         gather(waiting) {
           cycle = !!waiting;
-          if (mode === 'turn' || mode === 'enter') return;
-          R = N * gap() / TAU; D = 0; cx = 0; blendFrom = null;
-          dots.style.filter = '';
+          if (mode === 'enter' || mode === 'turn') return;
+          R = Math.max(28, N * gap() / TAU); P = -Math.PI / 2; pat = 0; next = -1; tPat = 0;
+          dots.style.filter = ''; dots.style.opacity = '';
           if (still) return;
-          cur = ds.map((_, i) => ({ x: rowX(i), y: 0, s: 1 }));
-          mode = 'enter'; tMode = performance.now(); run();
+          t0 = performance.now(); start('enter');
         },
         cycle(on) { cycle = on; },
         back() {
           if (still || !mode) { ds.forEach((d) => { d.style.translate = ''; d.style.scale = ''; }); mode = ''; return Promise.resolve(); }
-          return new Promise((res) => { done = res; mode = 'toLeft'; tMode = performance.now(); startBlend(tMode); run(); });
+          cycle = false; order = ds.map((_, i) => i);   // leftmost place fills first, like a train arriving
+          return new Promise((res) => { done = res; start('exit'); });
         },
-        merge() {
-          dots.style.transition = 'filter .45s ease'; dots.style.filter = 'blur(3px)';
-          if (still || !mode) return wait(still ? 0 : 450);
-          return new Promise((res) => { done = res; mode = 'merge'; startBlend(performance.now()); run(); }).then(() => wait(120));
+        // Merge at the middle of the screen. onGlow fires just before the dots become one, to start the reveal.
+        merge(onGlow) {
+          const r = dots.getBoundingClientRect();
+          target = { x: innerWidth / 2 - (r.left + r.width / 2), y: innerHeight / 2 - (r.top + r.height / 2), s: 1 };
+          dots.style.transition = 'filter .6s ease'; dots.style.filter = 'blur(2.5px)';
+          if (still || !mode) { if (onGlow) onGlow(); return Promise.resolve(); }
+          hook = onGlow;
+          return new Promise((res) => { done = res; start('merge'); });
         },
         stop() { cancelAnimationFrame(raf); raf = 0; mode = ''; }
       };
@@ -542,31 +512,35 @@
     };
     const problem = async (t) => { await ring.back(); pin = ''; draw(); lockEl.classList.remove('checking'); say(t, 'neg'); };
 
-    // Correct code: the dots melt into one soft glowing circle; the app appears behind while the glow
-    // swells out to the edges and fades, and the sign-in screen fades away. Only opacity and
-    // transform are animated, so it stays smooth on the phone.
+    // Correct code: the app is drawn behind the sign-in screen first (so nothing stutters later), then the
+    // dots drift to the middle of the screen as they melt into one glow, and that glow gently swells and
+    // fades while the sign-in screen fades away. One continuous motion; only opacity and transform animate.
     const enter = async (fresh) => {
       setLO({});
       clearInterval(timer);
-      await ring.merge();
-      const r = dots.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       document.body.appendChild(lockEl);
       lockEl.classList.add('leaving');
       App.unlocked(fresh);
       window.scrollTo(0, 0);
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       if (still || !lockEl.animate) { lockEl.remove(); return; }
-      const orb = document.createElement('div'); orb.className = 'reveal-orb';
-      const size = 44; orb.style.cssText = 'left:' + (cx - size / 2) + 'px;top:' + (cy - size / 2) + 'px;width:' + size + 'px;height:' + size + 'px';
-      document.body.appendChild(orb);
-      const far = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy));
-      const big = (far * 2.3) / size;
-      ring.stop(); dots.style.opacity = '0';
-      const E = 'cubic-bezier(.55, 0, .2, 1)';
-      orb.animate([{ transform: 'scale(.7)', opacity: 1 }, { transform: 'scale(' + (big * 0.45).toFixed(1) + ')', opacity: 0.55, offset: 0.55 }, { transform: 'scale(' + big.toFixed(1) + ')', opacity: 0 }], { duration: 900, easing: E, fill: 'forwards' })
-        .onfinish = () => orb.remove();
-      lockEl.style.transformOrigin = cx + 'px ' + cy + 'px';
-      lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.12)', opacity: 0 }], { duration: 620, delay: 80, easing: E, fill: 'forwards' })
-        .onfinish = () => lockEl.remove();
+      const E = 'cubic-bezier(.4, 0, .2, 1)';
+      const glow = () => {
+        const size = 36, cx = innerWidth / 2, cy = innerHeight / 2;
+        const orb = document.createElement('div'); orb.className = 'reveal-orb';
+        orb.style.cssText = 'left:' + (cx - size / 2) + 'px;top:' + (cy - size / 2) + 'px;width:' + size + 'px;height:' + size + 'px';
+        document.body.appendChild(orb);
+        const big = (Math.hypot(cx, cy) * 2.2) / size;
+        orb.animate([{ transform: 'scale(1)', opacity: 0 }, { transform: 'scale(1.6)', opacity: 0.9, offset: 0.12 }, { transform: 'scale(' + (big * 0.4).toFixed(1) + ')', opacity: 0.45, offset: 0.55 }, { transform: 'scale(' + big.toFixed(1) + ')', opacity: 0 }],
+          { duration: 1100, easing: E, fill: 'forwards' }).onfinish = () => orb.remove();
+        lockEl.style.transformOrigin = '50% 50%';
+        lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.05)', opacity: 0 }], { duration: 800, delay: 120, easing: E, fill: 'forwards' })
+          .onfinish = () => lockEl.remove();
+      };
+      // Clear the stage first: only the dots stay, drifting to the middle of the screen.
+      lockEl.querySelectorAll('.avatar-xl, h1, p, .pin-msg').forEach((el) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, easing: 'ease-out', fill: 'forwards' }));
+      await ring.merge(glow);
+      dots.style.transition = 'opacity .25s'; dots.style.opacity = '0';
     };
 
     const submit = async () => {

@@ -301,24 +301,25 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .pin-dots i.on { background: var(--text); }
 .pin-dots.shake { animation: shake .45s; }
 @keyframes shake { 15%, 55% { transform: translateX(-12px); } 35%, 75% { transform: translateX(12px); } }
-.pin-msg { min-height: 20px; font-size: 15px; color: var(--text-2); margin-bottom: 14px; letter-spacing: -0.23px; transition: opacity .25s; }
+.pin-msg { min-height: 20px; font-size: 15px; color: var(--text-2); margin-bottom: 14px; letter-spacing: -0.23px; transition: opacity .25s, transform .7s cubic-bezier(.32, .72, 0, 1); }
+/* While the dots turn below their row, the message sits under the ring, in the middle of the screen */
+.lock.checking .pin-msg { transform: translateY(190px); }
 .pin-msg.neg { color: var(--red); }
 .pin-msg.wait { min-height: 44px; }
 .pin-msg .wait-t { display: block; color: var(--text-2); }
 .pin-msg .wait-c { display: block; margin-top: 4px; font-size: 20px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
 /* Code entered: dots swap for the loader and the keypad slides down out of the way */
 .pin-stage { position: relative; }
-.pin-dots { transition: opacity .25s, transform .35s var(--ease), margin .5s var(--ease); }
+.pin-dots { transition: opacity .25s, transform .35s var(--ease); position: relative; z-index: 2; }
 .pin-load { position: absolute; left: 0; right: 0; top: 50%; height: 64px; margin-top: -32px; display: grid; place-items: center; opacity: 0; transform: scale(.5); transition: opacity .3s, transform .5s cubic-bezier(.34, 1.4, .64, 1); pointer-events: none; }
 .pin-load .ld { font-size: 17px; }
-.lock.checking .pin-dots { margin: 52px 0 40px; }
 .pin-dots i { will-change: translate, scale; }
 .lock.waiting .pin-dots i { opacity: .6; background: var(--text); }
 .lock.leaving { pointer-events: none; will-change: transform, opacity; }
 .lock.leaving .lock-bg i, .lock.leaving .ripple { animation-play-state: paused; }
 /* Soft glow that the merged dots become; it swells to the screen edges and fades as the app appears */
 .reveal-orb { position: fixed; z-index: 102; border-radius: 50%; pointer-events: none; will-change: transform, opacity;
-  background: radial-gradient(circle, var(--text) 0%, color-mix(in srgb, var(--text) 85%, transparent) 30%, color-mix(in srgb, var(--accent) 45%, transparent) 55%, transparent 72%); }
+  background: radial-gradient(circle, color-mix(in srgb, var(--text) 85%, transparent) 0%, color-mix(in srgb, var(--text) 45%, transparent) 28%, color-mix(in srgb, var(--accent) 22%, transparent) 50%, transparent 70%); }
 .lock.checking .pin-load { opacity: 1; transform: none; }
 .keypad { transition: transform .6s cubic-bezier(.32, .72, 0, 1), opacity .4s; }
 .lock.checking .keypad { transform: translateY(70%); opacity: 0; pointer-events: none; }
