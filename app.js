@@ -40,6 +40,9 @@
   App.uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   App.pct = (a, b) => (b > 0 ? a / b * 100 : 0);
   App.initial = () => (App.name1()[0] || 'M').toUpperCase();
+  /* Three-dot accent loader (animated by .tri3.go in styles.css). */
+  App.loader = (go) => '<span class="tri3' + (go ? ' go' : '') + '" aria-hidden="true"><span><i><b></b></i><i><b></b></i><i><b></b></i></span></span>';
+
   App.avatarHtml = () => {
     const a = App.S().avatar;
     return a ? '<div class="avatar"><img src="' + h(a) + '" alt=""></div>' : '<div class="avatar">' + h(App.initial()) + '</div>';
@@ -337,29 +340,92 @@
       '<div class="avatar-xl"><span class="ripple"></span><span class="ripple"></span><span class="ripple"></span>' + (Store.hasData ? App.avatarHtml() : '<div class="avatar" style="background:var(--accent)">' + icon('wallet', 34) + '</div>') + '</div>' +
       '<h1>' + h(title) + '</h1><p>' + sub + '</p>' +
       (notConfigured ? '<div class="notice warn" style="margin-top:20px"><b>One step left.</b> Paste your Apps Script <b>/exec</b> link into <b>config.js</b> (apiUrl), then upload the folder again. See SETUP-GUIDE.md, step 3.</div>' :
-      '<div class="pin-dots" id="dots">' + '<i></i>'.repeat(6) + '</div><div class="pin-msg" id="pinmsg"></div>' +
+      '<div class="pin-stage"><div class="pin-dots" id="dots">' + '<i></i>'.repeat(6) + '</div><div class="pin-load">' + App.loader(true) + '</div></div><div class="pin-msg" id="pinmsg"></div>' +
       '<div class="keypad">' + [[1, ''], [2, 'ABC'], [3, 'DEF'], [4, 'GHI'], [5, 'JKL'], [6, 'MNO'], [7, 'PQRS'], [8, 'TUV'], [9, 'WXYZ']].map((n) => '<button data-n="' + n[0] + '">' + n[0] + '<small>' + (n[1] || '&nbsp;') + '</small></button>').join('') +
       '<button class="fn" data-fn="help">' + (mode === 'unlock' ? 'Sign out' : '') + '</button><button data-n="0">0<small>&nbsp;</small></button><button class="fn" data-fn="del" aria-label="Delete">Delete</button></div>') +
       '</div></div>';
     if (notConfigured) return;
-    let pin = '', busy = false;
+    let pin = '', busy = false, timer = null;
+    const lockEl = app.querySelector('.lock');
     const dots = app.querySelector('#dots'), msg = app.querySelector('#pinmsg');
     const draw = () => dots.querySelectorAll('i').forEach((d, i) => d.classList.toggle('on', i < pin.length));
-    const fail = (t) => { msg.textContent = t; dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake'); pin = ''; draw(); if (navigator.vibrate) navigator.vibrate(80); };
+    const say = (t, tone) => { msg.textContent = t || ''; msg.className = 'pin-msg' + (tone ? ' ' + tone : ''); };
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    /* Wrong-code limit, like iPhone: 3 tries, then waits that grow (1, 5, 15, 60 minutes).
+       Kept on this device so closing the app doesn't reset it. */
+    const FREE = 3, WAITS = [1, 5, 15, 60];
+    const getLO = () => { try { return JSON.parse(localStorage.getItem('mb_lockout') || '{}'); } catch (e) { return {}; } };
+    const setLO = (o) => { try { localStorage.setItem('mb_lockout', JSON.stringify(o)); } catch (e) {} };
+    const mmss = (ms) => { const t = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+    const startWait = () => {
+      const lo = getLO();
+      if (!(lo.until > Date.now())) return false;
+      lockEl.classList.add('checking', 'waiting');
+      clearInterval(timer);
+      const tick = () => {
+        const left = lo.until - Date.now();
+        if (!lockEl.isConnected) return clearInterval(timer);
+        if (left <= 0) { clearInterval(timer); lockEl.classList.remove('checking', 'waiting'); say(''); return; }
+        msg.innerHTML = '<span class="wait-t">Too many attempts</span><b class="wait-c num">Try again in ' + mmss(left) + '</b>';
+        msg.className = 'pin-msg wait';
+      };
+      tick(); timer = setInterval(tick, 250);
+      return true;
+    };
+    const wrong = (text) => {
+      const lo = getLO(); lo.fails = (lo.fails || 0) + 1;
+      if (lo.fails >= FREE) lo.until = Date.now() + WAITS[Math.min(lo.fails - FREE, WAITS.length - 1)] * 60000;
+      setLO(lo);
+      pin = ''; draw();
+      lockEl.classList.remove('checking');
+      dots.classList.remove('shake'); void dots.offsetWidth; dots.classList.add('shake');
+      if (navigator.vibrate) navigator.vibrate(80);
+      if (startWait()) return;
+      const left = FREE - lo.fails;
+      say(text || ('Wrong code. ' + left + (left === 1 ? ' try' : ' tries') + ' left.'), 'neg');
+    };
+    const problem = (t) => { pin = ''; draw(); lockEl.classList.remove('checking'); say(t, 'neg'); };
+
+    // Correct code: the lock screen zooms towards you and the app zooms in behind it.
+    const enter = (fresh) => {
+      setLO({});
+      clearInterval(timer);
+      document.body.appendChild(lockEl);
+      lockEl.classList.add('leaving');
+      App.unlocked(fresh);
+      const shell = document.querySelector('#app .shell') || document.getElementById('app');
+      if (shell.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        shell.animate([{ transform: 'scale(.9)', opacity: 0, filter: 'blur(8px)' }, { transform: 'none', opacity: 1, filter: 'blur(0)' }], { duration: 620, easing: 'cubic-bezier(.22, .8, .22, 1)' });
+        lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.35)', opacity: 0 }], { duration: 480, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' }).onfinish = () => lockEl.remove();
+      } else lockEl.remove();
+    };
+
     const submit = async () => {
-      busy = true; msg.style.color = 'var(--text-3)'; msg.textContent = mode === 'unlock' ? '' : 'Checking…';
+      if (startWait()) { pin = ''; draw(); return; }
+      busy = true;
+      lockEl.classList.add('checking');   // keypad slides away, loader shows
+      say(mode === 'unlock' ? '' : 'Checking with your Google Sheet…');
+      const t0 = Date.now(), minShow = () => wait(Math.max(0, 1100 - (Date.now() - t0)));
       try {
-        if (mode === 'unlock' && Store.pinHash && await Store.checkPin(pin)) { return App.unlocked(); }
-        if (mode === 'unlock' && !navigator.onLine) { msg.style.color = ''; return fail('Wrong code.'); }
-        msg.style.color = 'var(--text-3)'; msg.textContent = 'Checking…';
+        if (mode === 'unlock' && Store.pinHash) {
+          const ok = await Store.checkPin(pin);
+          await minShow();
+          if (ok) return enter(false);
+          if (!navigator.onLine) return wrong();
+        }
         await Store.login(pin);
-        App.unlocked(true);
+        await minShow();
+        enter(true);
       } catch (e) {
-        msg.style.color = '';
-        fail(e.code === 'NET' ? 'No connection. Check your internet and try again.' : e.message);
+        await minShow();
+        if (e.code === 'NET') problem('No connection. Check your internet and try again.');
+        else if (e.code === 'BAD_PIN') wrong();
+        else if (e.code === 'LOCKED') { const lo = getLO(); lo.until = Date.now() + 15 * 60000; setLO(lo); pin = ''; draw(); startWait(); }
+        else problem(e.message);
       } finally { busy = false; }
     };
-    const press = (n) => { if (busy) return; App.haptic(); if (pin.length < 6) { pin += n; draw(); msg.textContent = ''; } if (pin.length === 6) setTimeout(submit, 120); };
+    const press = (n) => { if (busy || lockEl.classList.contains('checking')) return; App.haptic(); if (pin.length < 6) { pin += n; draw(); if (!msg.classList.contains('wait')) say(''); } if (pin.length === 6) setTimeout(submit, 160); };
     const del = () => { if (!busy) { pin = pin.slice(0, -1); draw(); } };
     app.querySelectorAll('[data-n]').forEach((b) => (b.onclick = () => press(b.dataset.n)));
     app.querySelector('[data-fn="del"]').onclick = del;
@@ -369,6 +435,7 @@
         Store.signOut(); App.lockScreen('signin');
       }
     };
+    startWait();
     App._keyHandler = (e) => { if (!App.ui.locked || App._sheets.length) return; if (/^\d$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') del(); };
   };
   document.addEventListener('keydown', (e) => App._keyHandler && App._keyHandler(e));

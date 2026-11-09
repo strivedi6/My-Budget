@@ -301,7 +301,22 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .pin-dots i.on { background: var(--text); }
 .pin-dots.shake { animation: shake .45s; }
 @keyframes shake { 15%, 55% { transform: translateX(-12px); } 35%, 75% { transform: translateX(12px); } }
-.pin-msg { min-height: 20px; font-size: 15px; color: var(--red); margin-bottom: 14px; letter-spacing: -0.23px; }
+.pin-msg { min-height: 20px; font-size: 15px; color: var(--text-2); margin-bottom: 14px; letter-spacing: -0.23px; transition: opacity .25s; }
+.pin-msg.neg { color: var(--red); }
+.pin-msg.wait { min-height: 44px; }
+.pin-msg .wait-t { display: block; color: var(--text-2); }
+.pin-msg .wait-c { display: block; margin-top: 4px; font-size: 20px; font-weight: 600; color: var(--text); letter-spacing: -0.3px; }
+/* Code entered: dots swap for the loader and the keypad slides down out of the way */
+.pin-stage { position: relative; }
+.pin-dots { transition: opacity .25s, transform .35s var(--ease), margin .5s var(--ease); }
+.pin-load { position: absolute; left: 0; right: 0; top: 50%; height: 64px; margin-top: -32px; display: grid; place-items: center; opacity: 0; transform: scale(.5); transition: opacity .3s, transform .5s cubic-bezier(.34, 1.4, .64, 1); pointer-events: none; }
+.pin-load .tri3 { font-size: 17px; }
+.lock.checking .pin-dots { opacity: 0; transform: scale(.85); margin: 50px 0 34px; }
+.lock.checking .pin-load { opacity: 1; transform: none; }
+.keypad { transition: transform .6s cubic-bezier(.32, .72, 0, 1), opacity .4s; }
+.lock.checking .keypad { transform: translateY(70%); opacity: 0; pointer-events: none; }
+.lock.waiting .avatar-xl .ripple { animation-play-state: paused; opacity: 0; }
+.lock.leaving { z-index: 100; pointer-events: none; transform-origin: 50% 40%; }
 .keypad { display: grid; grid-template-columns: repeat(3, 78px); gap: 16px 26px; justify-content: center; }
 .keypad button { width: 78px; height: 78px; border-radius: 50%; font-size: 34px; font-weight: 400; color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; transition: background .15s;
   background: var(--glass); -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%); box-shadow: inset 0 0 0 .5px var(--glass-edge); }
@@ -388,32 +403,52 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .li { transition: opacity .15s, background .2s; }
 .card, .stat, .menu, .day-group { transform-origin: center top; }
 #ptr { position: fixed; z-index: 15; left: 50%; top: calc(var(--safe-t) + var(--top-gap) + 58px); transform: translate(-50%, 0) scale(.6); opacity: 0; pointer-events: none; }
-/* Pull-to-refresh: gooey three-ball loader in accent shades */
-#ptr .goo { display: block; overflow: visible; }
-#ptr .arm { transform: rotate(var(--a)); }
-#ptr .ball { transform-box: fill-box; transform-origin: center; translate: 0 -12px; opacity: 0; }
-#ptr .b0 { fill: color-mix(in oklch, var(--accent) 55%, #fff); }
-#ptr .b1 { fill: var(--accent); }
-#ptr .b2 { fill: color-mix(in oklch, var(--accent) 78%, #000); }
-#ptr .blob, #ptr .orbit { transform-origin: 0 0; }
-#ptr.ready .ball { animation: gooPop .4s cubic-bezier(.34, 1.56, .64, 1); }
-#ptr.spin .ball { opacity: 1; animation: gooGather 2.4s cubic-bezier(.65, 0, .35, 1) infinite; }
-#ptr.spin .orbit { animation: gooOrbit 2.4s cubic-bezier(.45, .05, .55, .95) infinite; }
-#ptr.spin .blob { animation: gooSquish 2.4s ease-in-out infinite; }
-#ptr.done .ball { opacity: 1; animation: gooEnd .3s ease-in forwards; }
-/* Apart → melt together → wobble as one blob → split apart */
-@keyframes gooGather {
-  0%, 30% { translate: 0 -12px; scale: 1; }
-  48%, 66% { translate: 0 -2.5px; scale: 1.3; }
-  80% { translate: 0 -14px; scale: .92; }
-  90%, 100% { translate: 0 -12px; scale: 1; } }
-@keyframes gooOrbit { 0% { rotate: 0deg; } 35% { rotate: 140deg; } 70% { rotate: 230deg; } 100% { rotate: 360deg; } }
-@keyframes gooSquish {
-  0%, 44% { scale: 1 1; }
-  52% { scale: 1.3 .8; } 59% { scale: .85 1.2; } 66% { scale: 1.15 .9; } 74% { scale: 1 1; } 100% { scale: 1 1; } }
-@keyframes gooPop { 50% { scale: 1.3; translate: 0 -14px; } }
-@keyframes gooEnd { to { translate: 0 0; scale: 1.5; opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #ptr.spin .ball, #ptr.spin .orbit, #ptr.spin .blob { animation-duration: 5s; } }
+/* Loader: three accent dots in a triangle that turns in 60-degree steps, then folds into one dot and pops back out.
+   Used for pull-to-refresh and while the sign-in code is checked. Size it with font-size. */
+.tri3 { position: relative; display: inline-block; width: 2.6em; height: 2.6em; font-size: 14px; vertical-align: middle; }
+.tri3 > span { position: absolute; inset: 0; }
+.tri3 i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--a)); }
+.tri3 i:nth-child(1) { --a: 0deg; } .tri3 i:nth-child(2) { --a: 120deg; } .tri3 i:nth-child(3) { --a: 240deg; }
+.tri3 b { position: absolute; left: -.26em; top: -.26em; width: .52em; height: .52em; border-radius: 50%; background: var(--accent); translate: 0 -1em; }
+.tri3.go > span { animation: tri3Turn 4.4s infinite; }
+.tri3.go b { animation: tri3Fold 4.4s cubic-bezier(.5,0,.3,1) infinite; }
+@keyframes tri3Turn {
+    0% { rotate: 0deg; scale: 1; }
+  0.00% { rotate: 0deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
+  2.95% { scale: .86; }
+  5.91% { rotate: 60deg; scale: 1; }
+  13.64% { rotate: 60deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
+  16.59% { scale: .86; }
+  19.55% { rotate: 120deg; scale: 1; }
+  27.27% { rotate: 120deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
+  30.23% { scale: .86; }
+  33.18% { rotate: 180deg; scale: 1; }
+  40.91% { rotate: 180deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
+  43.86% { scale: .86; }
+  46.82% { rotate: 240deg; scale: 1; }
+  54.55% { rotate: 240deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
+  57.50% { scale: .86; }
+  60.45% { rotate: 300deg; scale: 1; }
+  68.18% { rotate: 300deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
+  71.14% { scale: .86; }
+  74.09% { rotate: 360deg; scale: 1; }
+  100% { rotate: 360deg; scale: 1; }
+}
+@keyframes tri3Fold {
+  0%, 81.82% { translate: 0 -1em; scale: 1; opacity: 1; }
+  86.82% { translate: 0 0; scale: .9; }
+  90.82% { translate: 0 0; scale: .45; }
+  94.82% { translate: 0 0; scale: 1.15; }
+  98.82% { translate: 0 -1.15em; scale: .95; }
+  100% { translate: 0 -1em; scale: 1; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .tri3.go > span, .tri3.go b { animation-duration: 9s; } }
+#ptr .tri3 b { opacity: 0; }
+#ptr.ready .tri3 b { animation: tri3Pop .4s cubic-bezier(.34, 1.56, .64, 1); }
+#ptr.spin .tri3 b { opacity: 1; }
+#ptr.done .tri3 > span { animation: none; } #ptr.done .tri3 b { opacity: 1; animation: tri3End .3s ease-in forwards; }
+@keyframes tri3Pop { 50% { scale: 1.35; } }
+@keyframes tri3End { to { translate: 0 0; scale: 1.4; opacity: 0; } }
 .sheet.in .sh-b > * { animation: rise .5s var(--ease) backwards; }
 .sheet.in .sh-b > *:nth-child(2) { animation-delay: .03s; } .sheet.in .sh-b > *:nth-child(3) { animation-delay: .06s; } .sheet.in .sh-b > *:nth-child(4) { animation-delay: .09s; } .sheet.in .sh-b > *:nth-child(n+5) { animation-delay: .12s; }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } }

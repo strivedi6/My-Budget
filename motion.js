@@ -253,20 +253,10 @@
   /* ---------- Pull down to refresh (elastic) ---------- */
   const ptr = document.createElement('div');
   ptr.id = 'ptr';
-  // Gooey accent loader: three balls circle the triangle, melt into one stretchy blob, then split again.
-  // The "goo" is an SVG filter (blur + sharpen the edge), with a soft coloured reflection underneath.
-  ptr.innerHTML = '<svg class="goo" viewBox="-32 -32 64 64" width="64" height="64" aria-hidden="true"><defs>' +
-    '<filter id="ptr-goo" x="-60%" y="-60%" width="220%" height="240%" color-interpolation-filters="sRGB">' +
-    '<feGaussianBlur in="SourceGraphic" stdDeviation="3.2" result="b"/>' +
-    '<feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -9" result="g"/>' +
-    '<feOffset in="g" dy="7" result="o"/><feGaussianBlur in="o" stdDeviation="2.2" result="ob"/>' +
-    '<feComponentTransfer in="ob" result="sh"><feFuncA type="linear" slope=".28"/></feComponentTransfer>' +
-    '<feMerge><feMergeNode in="sh"/><feMergeNode in="g"/></feMerge></filter></defs>' +
-    '<g filter="url(#ptr-goo)"><g class="blob"><g class="orbit">' +
-    [0, 120, 240].map((a, i) => '<g class="arm" style="--a:' + a + 'deg"><circle class="ball b' + i + '" r="5.5"/></g>').join('') +
-    '</g></g></g></svg>';
+  // Accent loader (three turning dots). They appear one by one as you pull, then turn while refreshing.
+  ptr.innerHTML = App.loader();
   document.body.appendChild(ptr);
-  const dots3 = ptr.querySelectorAll('.ball');
+  const tri = ptr.querySelector('.tri3'), dots3 = ptr.querySelectorAll('.tri3 b');
   const MAX = 150, TRIGGER = 66, HOLD = 58;
   const rubber = (dy) => MAX * (1 - Math.exp(-dy / 270));
   let startY = null, pulling = false, dist = 0, busy = false;
@@ -312,11 +302,11 @@
       busy = true;
       App.haptic();
       setPull(HOLD, true);
-      ptr.classList.remove('ready'); ptr.classList.add('spin'); dots3.forEach((dt) => { dt.style.opacity = ''; dt.style.scale = ''; });
+      ptr.classList.remove('ready'); ptr.classList.add('spin'); tri.classList.add('go'); dots3.forEach((dt) => { dt.style.opacity = ''; dt.style.scale = ''; });
       const t0 = Date.now();
       try { await Store.refresh(); } catch (err) {}
       await new Promise((r) => setTimeout(r, Math.max(0, 650 - (Date.now() - t0))));
-      ptr.classList.remove('spin'); ptr.classList.add('done');
+      ptr.classList.remove('spin'); ptr.classList.add('done'); tri.classList.remove('go');
       await new Promise((r) => setTimeout(r, 260));
       ptr.classList.remove('done');
       busy = false;
