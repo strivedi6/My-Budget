@@ -409,29 +409,28 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .card, .stat, .menu, .day-group { transform-origin: center top; }
 /* ---------- Pull to refresh: aurora in the accent colour, behind the status bar and top bar ---------- */
 #aurora { position: fixed; z-index: 19; top: 0; left: 0; right: 0; height: 0; opacity: 0; overflow: hidden; pointer-events: none; contain: strict;
-  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent); mask-image: linear-gradient(180deg, #000 50%, transparent);
   --a1: var(--accent); --a2: color-mix(in oklch, var(--accent) 55%, #fff); --a3: color-mix(in oklch, var(--accent) 70%, var(--p2)); --a4: color-mix(in oklch, var(--accent) 75%, #000); }
-#aurora .sky { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 22%, #050713) 0%, color-mix(in oklch, var(--accent) 14%, #0a0e24) 60%, transparent 100%); }
+#aurora .sky { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 16%, #060816) 0%, color-mix(in oklch, var(--accent) 10%, #0b0f22) 70%, transparent 100%); }
 :root[data-theme="light"] #aurora .sky { background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 30%, #141a3a) 0%, color-mix(in oklch, var(--accent) 22%, #2a3160) 55%, transparent 100%); }
 #aurora { --a5: var(--p2); }
 @supports (color: oklch(from red l c h)) { #aurora { --a5: oklch(from var(--accent) calc(l + .05) c calc(h + 55)); --a6: oklch(from var(--accent) l c calc(h - 35)); } }
-#aurora .lights { position: absolute; inset: -6% -10% 0; }
+#aurora .lights { position: absolute; inset: -20% -10% 0; filter: blur(7px); }
 /* glows: soft wide light behind the curtains */
-#aurora .lights b { position: absolute; left: -15%; width: 130%; height: 75%; top: 12%; border-radius: 50%; opacity: .5; filter: blur(22px); mix-blend-mode: screen; will-change: transform;
+#aurora .lights b { position: absolute; left: -15%; width: 130%; height: 60%; top: 18%; border-radius: 50%; opacity: .6; filter: blur(16px); mix-blend-mode: screen; will-change: transform;
   background: radial-gradient(ellipse at 50% 60%, var(--a1) 0%, color-mix(in srgb, var(--a1) 30%, transparent) 40%, transparent 70%); }
 #aurora .lights b + b { left: 10%; width: 110%; top: 0; opacity: .35; background: radial-gradient(ellipse at 40% 55%, var(--a5) 0%, transparent 65%); }
 /* curtains: arched bands of fine rays, bright along the bottom edge and fading upwards */
-#aurora .lights i { position: absolute; left: -30%; width: 160%; height: 72%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; opacity: .85; mix-blend-mode: screen; transform-origin: 50% 100%; will-change: transform, opacity;
+#aurora .lights i { position: absolute; left: -30%; width: 160%; height: 62%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; opacity: .7; mix-blend-mode: screen; transform-origin: 50% 100%; will-change: transform, opacity;
   background:
-    repeating-linear-gradient(90deg, transparent 0 5px, color-mix(in srgb, var(--c) 75%, #fff) 6px 7px, transparent 8px 14px, color-mix(in srgb, var(--c) 55%, transparent) 15px 17px, transparent 18px 27px),
-    linear-gradient(0deg, color-mix(in oklch, var(--c) 70%, #fff) 0%, var(--c) 10%, color-mix(in srgb, var(--c) 45%, transparent) 35%, transparent 85%);
-  -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 6%, #000 30%, transparent 92%); mask-image: linear-gradient(0deg, transparent 0%, #000 6%, #000 30%, transparent 92%);
-  filter: blur(1.6px); }
-#aurora .lights i:nth-child(1) { --c: var(--a1); top: 14%; }
-#aurora .lights i:nth-child(2) { --c: var(--a5); top: 0; left: -10%; width: 120%; opacity: .7; }
-#aurora .lights i:nth-child(3) { --c: var(--a2); top: 26%; left: -45%; opacity: .6; }
+    repeating-linear-gradient(90deg, transparent 0, color-mix(in srgb, var(--c) 45%, transparent) 14px, transparent 28px, transparent 34px, color-mix(in srgb, var(--c) 30%, transparent) 44px, transparent 58px),
+    linear-gradient(0deg, color-mix(in srgb, var(--c) 85%, transparent) 0%, color-mix(in srgb, var(--c) 45%, transparent) 35%, transparent 85%);
+  -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 18%, #000 35%, transparent 90%); mask-image: linear-gradient(0deg, transparent 0%, #000 18%, #000 35%, transparent 90%); }
+#aurora .lights i:nth-child(1) { --c: var(--a1); top: 12%; }
+#aurora .lights i:nth-child(2) { --c: var(--a5); top: 2%; left: -10%; width: 120%; }
+#aurora .lights i:nth-child(3) { --c: var(--a2); top: 20%; left: -45%; }
 #aurora .lights i:nth-child(n+4) { display: none; }
-#aurora .stars { position: absolute; inset: 0; opacity: .8; background-repeat: no-repeat;
+#aurora .stars { position: absolute; inset: 0; opacity: .6; background-repeat: no-repeat;
   background-image: radial-gradient(1.2px 1.2px at 8% 22%, #fff 99%, transparent), radial-gradient(1px 1px at 23% 58%, #fff 99%, transparent), radial-gradient(1.4px 1.4px at 41% 15%, #fff 99%, transparent),
     radial-gradient(1px 1px at 57% 44%, #fff 99%, transparent), radial-gradient(1.3px 1.3px at 72% 20%, #fff 99%, transparent), radial-gradient(1px 1px at 88% 52%, #fff 99%, transparent), radial-gradient(1.2px 1.2px at 95% 12%, #fff 99%, transparent); }
 #aurora .stars.s2 { opacity: .5; background-image: radial-gradient(1px 1px at 15% 40%, #fff 99%, transparent), radial-gradient(1.3px 1.3px at 33% 30%, #fff 99%, transparent), radial-gradient(1px 1px at 49% 62%, #fff 99%, transparent),
@@ -446,14 +445,14 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* while refreshing, the lights dance a little faster and brighter */
 /* while refreshing, the lights dance a little faster and brighter */
 #aurora.busy .lights i { animation-duration: 5s, 1.6s; }
-#aurora.busy .lights, #aurora.ready .lights { filter: brightness(1.18); }
+#aurora.busy .lights, #aurora.ready .lights { filter: blur(7px) brightness(1.12); }
 #aurora .lights { transition: filter .4s; }
 @keyframes curtain {
   0% { transform: translateX(-7%) rotate(-5deg) skewX(14deg) scaleY(.85); }
   35% { transform: translateX(2%) rotate(2deg) skewX(-6deg) scaleY(1.12); }
   70% { transform: translateX(6%) rotate(-2deg) skewX(10deg) scaleY(.95); }
   100% { transform: translateX(-2%) rotate(5deg) skewX(-14deg) scaleY(1.08); } }
-@keyframes shimmer { 0% { opacity: .45; } 100% { opacity: .95; } }
+@keyframes shimmer { 0% { opacity: .55; } 100% { opacity: 1; } }
 @keyframes glowDrift { 0% { transform: translateX(-8%) scale(1, .9); } 100% { transform: translateX(8%) scale(1.1, 1.15); } }
 @keyframes twinkle { 0% { opacity: .25; } 100% { opacity: .9; } }
 @media (prefers-reduced-motion: reduce) { #aurora.live .lights i, #aurora.live .lights b, #aurora.live .stars { animation-duration: 20s !important; } }

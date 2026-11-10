@@ -268,8 +268,8 @@
     v.style.transform = d ? 'translateY(' + d + 'px)' : '';
     const p = Math.min(1, d / TRIGGER);
     aur.style.transition = withTransition ? 'height .6s ' + SPRING + ', opacity .5s ease' : 'none';
-    aur.style.height = (navH() + d + 40) + 'px';
-    if (!busy) aur.style.opacity = d > 2 ? Math.min(1, p * 1.15).toFixed(3) : '0';
+    aur.style.height = (navH() + Math.min(d * 0.35, 26)) + 'px';   // stays in the top strip
+    if (!busy) aur.style.opacity = d > 2 ? (0.85 * Math.min(1, p)).toFixed(3) : '0';
     aur.classList.toggle('live', d > 2 || busy);
     aur.classList.toggle('ready', p >= 1 && !busy);
     // Large title stretches a little, like iOS.
