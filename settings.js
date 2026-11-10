@@ -105,16 +105,21 @@
       return back() + '<p class="sub" style="margin:0 0 14px;font-size:13.5px">Settings for <b>' + h(Calc.monthLabel(key)) + '</b> only. Leave a box empty to use the default. Use the month switcher above to change month.</p>' +
         '<div class="grid">' +
         '<section class="card c6"><div class="card-h"><h3>Income this month</h3></div>' +
-          '<div class="two"><label class="field"><span>' + h(App.first1()) + '\'s salary</span><input class="input" data-f="income1" inputmode="decimal" placeholder="' + h(s.sal1) + '" value="' + v(md.income1) + '"></label>' +
-          '<label class="field"><span>' + h(App.first2()) + '\'s salary</span><input class="input" data-f="income2" inputmode="decimal" placeholder="' + h(s.sal2) + '" value="' + v(md.income2) + '"></label></div>' +
-          '<div class="field"><span>Extra income</span><div id="extras">' + extras.map(extraRow).join('') + '</div><button class="btn sm ghost" id="add-extra">' + icon('plus', 16) + 'Add income source</button></div>' +
+          '<div class="money-grid">' +
+            money({ person: 1, name: App.first1() + '\'s salary', attr: 'data-f="income1"', value: v(md.income1), ph: fmt(s.sal1), hint: 'Default ' + fmt(s.sal1) }) +
+            money({ person: 2, name: App.first2() + '\'s salary', attr: 'data-f="income2"', value: v(md.income2), ph: fmt(s.sal2), hint: 'Default ' + fmt(s.sal2) }) +
+          '</div>' +
+          '<div class="field" style="margin:16px 0 0"><span>Extra income</span><div id="extras">' + extras.map(extraRow).join('') + '</div><button class="btn sm ghost" id="add-extra">' + icon('plus', 16) + 'Add income source</button></div>' +
         '</section>' +
-        '<section class="card c6"><div class="card-h"><h3>Spread a big payment</h3></div><p class="muted" style="font-size:13px;margin:-6px 0 12px">For payments that cover several months (rent cheque, annual fee): enter the amount this month should carry. The difference stays in savings. Empty = actual spend.</p>' +
-          (accCats.length ? accCats.map((c) => { const act = m.agg.total[c.id] || 0; return '<label class="field"><span class="between"><span class="row" style="gap:8px"><span class="cat-ic sm">' + catIcon(c.icon, 14) + '</span>' + h(c.name) + '</span><span class="muted num">actual ' + fmt(act) + '</span></span>' +
-            '<input class="input" data-acc="' + h(c.id) + '" data-act="' + act + '" inputmode="decimal" placeholder="e.g. ' + fmt(act / 3) + ' (÷ 3)" value="' + v((md.accruals || {})[c.id]) + '"><small data-prev="' + h(c.id) + '"></small></label>'; }).join('') : '<div class="empty" style="padding:12px">Log spends for this month first; categories with spends appear here.</div>') +
+        '<section class="card c6"><div class="card-h"><h3>Spread a big payment</h3></div><p class="muted card-note">For payments that cover several months (rent cheque, annual fee): enter what this month should carry. The difference stays in savings. Empty = actual spend.</p>' +
+          (accCats.length ? '<div class="money-grid">' + accCats.map((c) => { const act = m.agg.total[c.id] || 0;
+            return money({ cat: c, attr: 'data-acc="' + h(c.id) + '" data-act="' + act + '"', value: v((md.accruals || {})[c.id]), ph: fmt(act / 3), hint: 'Actual ' + fmt(act), prev: c.id }); }).join('') + '</div>'
+            : '<div class="empty" style="padding:12px">Log spends for this month first; categories with spends appear here.</div>') +
         '</section>' +
-        '<section class="card"><div class="card-h"><h3>Budgets this month</h3></div><p class="muted" style="font-size:13px;margin:-6px 0 12px">Used for categories with nothing logged this month. Empty = the category\'s default budget.</p>' +
-          '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:0 14px">' + budgeted.map((c) => '<label class="field"><span class="row" style="gap:8px"><span class="cat-ic sm">' + catIcon(c.icon, 14) + '</span>' + h(c.name) + '</span><input class="input" data-bud="' + h(c.id) + '" inputmode="decimal" placeholder="' + fmt(c.budget) + '" value="' + v((md.budgets || {})[c.id]) + '"></label>').join('') + '</div>' +
+        '<section class="card"><div class="card-h"><h3>Budgets this month</h3>' + ((md.budgets || {})._smart ? '<span class="pill">Smart budget</span>' : '') + '</div>' +
+          '<p class="muted card-note">Used for categories with nothing logged yet this month. Empty = the category\'s default budget.' + ((md.budgets || {})._smart ? ' These were set by smart budgets; saving here makes them your own for this month.' : '') + '</p>' +
+          '<div class="money-grid wide">' + budgeted.map((c) => money({ cat: c, attr: 'data-bud="' + h(c.id) + '"', value: v((md.budgets || {})[c.id]), ph: c.budget ? fmt(c.budget) : '0',
+            hint: (m.agg.total[c.id] || 0) > 0 ? 'Spent ' + fmt(m.agg.total[c.id]) : c.budget ? 'Default ' + fmt(c.budget) : 'No default' })).join('') + '</div>' +
         '</section>' +
         '<div class="span-all"><button class="btn primary block" id="save-month">Save ' + h(Calc.monthLabel(key)) + '</button></div></div>';
     },
@@ -144,6 +149,13 @@
       };
     }
   };
+  /* A tinted amount box: icon + name, "AED" and the number, and a small hint underneath. */
+  function money(o) {
+    const head = o.cat ? '<span class="cat-ic sm">' + catIcon(o.cat.icon, 14) + '</span><span class="mn">' + h(o.cat.name) + '</span>'
+      : '<span class="dot" style="background:var(--p' + o.person + ')"></span><span class="mn">' + h(o.name) + '</span>';
+    return '<label class="money"><span class="mh">' + head + '</span><span class="mi"><em>AED</em><input ' + o.attr + ' inputmode="decimal" placeholder="' + h(o.ph) + '" value="' + o.value + '"></span>' +
+      '<small class="mhint">' + h(o.hint || '') + '</small>' + (o.prev ? '<small class="mprev" data-prev="' + h(o.prev) + '"></small>' : '') + '</label>';
+  }
   function extraRow(x) {
     return '<div class="xrow row" style="gap:8px;margin-bottom:8px"><input class="input" data-xd placeholder="Source, e.g. Bonus" value="' + h(x.desc || '') + '" style="flex:2">' +
       '<input class="input" data-xa inputmode="decimal" placeholder="Amount" value="' + h(x.amount || '') + '" style="flex:1;min-width:90px"><button class="icon-btn" data-rmx aria-label="Remove">' + icon('trash', 18) + '</button></div>';

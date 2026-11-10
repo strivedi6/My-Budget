@@ -476,6 +476,24 @@ html.is-locked { background: var(--bg); }
 @keyframes ripple { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .lock-bg i, .ripple { animation: none !important; } .ripple { display: none; } }
 
+/* ---------- Amount boxes (Month setup) ---------- */
+.card-note { font-size: 13px; line-height: 1.4; margin: -4px 0 14px; }
+.card .input { background: var(--fill-4); }
+.money-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.money { display: flex; flex-direction: column; gap: 6px; padding: 12px 12px 10px; border-radius: 16px; background: var(--fill-4); cursor: text; transition: box-shadow .2s, background .2s; min-width: 0; }
+.money:focus-within { box-shadow: 0 0 0 2px var(--accent); background: var(--surface); }
+.money .mh { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.money .mh .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin: 0 3px; }
+.money .mn { font-size: 14px; font-weight: 500; letter-spacing: -0.15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.money .mi { display: flex; align-items: baseline; gap: 6px; }
+.money .mi em { font-style: normal; font-size: 13px; font-weight: 500; color: var(--text-3); }
+.money .mi input { flex: 1; min-width: 0; width: 100%; border: 0; outline: none; background: none; padding: 0; color: var(--text); font-size: 22px; font-weight: 600; letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
+.money .mi input::placeholder { color: var(--text-4); font-weight: 500; }
+.money .mhint, .money .mprev { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.money .mprev:empty { display: none; }
+.money .mprev { white-space: normal; }
+@media (min-width: 1024px) { .money-grid.wide { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
+
 /* ---------- Smart budget (Insights › Plan) ---------- */
 #itabs button { padding-left: 0; padding-right: 0; min-width: 0; flex: 1 1 0; font-size: 13.5px; letter-spacing: -0.3px; }
 .toggle-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 16px; background: var(--fill-4); cursor: pointer; }
