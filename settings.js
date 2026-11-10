@@ -227,24 +227,17 @@
   /* ---------- Appearance ---------- */
   PAGES.appearance = {
     render() {
-      const acc = App.S().accent || 'amber', custom = acc.charAt(0) === '#';
+      const acc = App.accent(), custom = acc.charAt(0) === '#';
       return back() + '<div class="grid"><section class="card c6"><div class="field"><span>Theme on this device</span><div class="seg full" id="ap">' + [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']].map((x) => '<button data-v="' + x[0] + '" class="' + (App.prefs.appearance === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div><small>Automatic follows your phone or computer.</small></div>' +
-        '<div class="field"><span>Accent colour (all devices)</span><div class="swatches">' + ACCENTS.map((a) => '<button class="swatch ' + (acc === a[0] ? 'on' : '') + '" data-a="' + a[0] + '" style="background:' + a[1] + '" aria-label="' + a[0] + '"></button>').join('') +
-        '<label class="swatch ' + (custom ? 'on' : '') + '" style="background:' + (custom ? acc : 'conic-gradient(#f43,#fc3,#3c6,#39f,#a4f,#f43)') + '" title="Custom colour"><input type="color" id="acc-c" value="' + (custom ? acc : '#e0a21f') + '"></label></div></div></section>' +
-        '<section class="card c6"><div class="field" style="margin-bottom:0"><span>Loading animation (this device)</span><div class="ld-grid">' +
-        App.LOADERS.map((x) => '<button class="ld-tile ' + ((App.prefs.loader || 'goo') === x[0] ? 'on' : '') + '" data-ld="' + x[0] + '">' + App.loader(true, x[0]) + '<span>' + h(x[1]) + '</span></button>').join('') +
-        '</div><small>Shown when you pull down to refresh.</small></div></section></div>';
+        '<div class="field"><span>Accent colour (this device)</span><div class="swatches">' + ACCENTS.map((a) => '<button class="swatch ' + (acc === a[0] ? 'on' : '') + '" data-a="' + a[0] + '" style="background:' + a[1] + '" aria-label="' + a[0] + '"></button>').join('') +
+        '<label class="swatch ' + (custom ? 'on' : '') + '" style="background:' + (custom ? acc : 'conic-gradient(#f43,#fc3,#3c6,#39f,#a4f,#f43)') + '" title="Custom colour"><input type="color" id="acc-c" value="' + (custom ? acc : '#e0a21f') + '"></label></div></div></section></div>';
     },
     mount(v) {
       v.querySelectorAll('#ap [data-v]').forEach((b) => (b.onclick = () => { App.prefs.appearance = b.dataset.v; App.savePrefs(); App.applyTheme(); App.renderView(); }));
-      const set = (val) => Store.commit({ op: 'put', t: 'settings', row: { key: 'accent', value: val } });
+      // The accent colour is saved on this device only, so each person can pick their own.
+      const set = (val) => { App.prefs.accent = val; App.savePrefs(); App.applyTheme(); App.renderView(); };
       v.querySelectorAll('[data-a]').forEach((b) => (b.onclick = () => set(b.dataset.a)));
       v.querySelector('#acc-c').onchange = (e) => set(e.target.value);
-      v.querySelectorAll('[data-ld]').forEach((b) => (b.onclick = () => {
-        App.prefs.loader = b.dataset.ld; App.savePrefs();
-        v.querySelectorAll('[data-ld]').forEach((x) => x.classList.toggle('on', x === b));
-        if (App.refreshLoader) App.refreshLoader();
-      }));
     }
   };
 

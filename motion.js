@@ -251,13 +251,13 @@
   })();
 
   /* ---------- Pull down to refresh (elastic) ---------- */
-  const ptr = document.createElement('div');
-  ptr.id = 'ptr';
-  // Accent loader (three turning dots). They appear one by one as you pull, then turn while refreshing.
-  document.body.appendChild(ptr);
-  let tri = null;
-  App.refreshLoader = () => { ptr.innerHTML = App.loader(false); tri = ptr.querySelector('.ld'); };
-  App.refreshLoader();
+  // Aurora: northern lights in the accent colour, behind the status bar and the top bar.
+  // Pulling down stretches it into view; it sways while the refresh runs, then fades away.
+  const aur = document.createElement('div');
+  aur.id = 'aurora'; aur.setAttribute('aria-hidden', 'true');
+  aur.innerHTML = '<div class="sky"></div><div class="lights">' + '<i></i>'.repeat(6) + '<b></b><b></b></div><span class="stars"></span><span class="stars s2"></span>';
+  document.body.appendChild(aur);
+  const navH = () => { const n = document.querySelector('.navbar'); return n ? n.getBoundingClientRect().height : 100; };
   const MAX = 150, TRIGGER = 66, HOLD = 58;
   const rubber = (dy) => MAX * (1 - Math.exp(-dy / 270));
   let startY = null, pulling = false, dist = 0, busy = false;
@@ -267,13 +267,11 @@
     v.style.transition = withTransition ? 'transform .6s ' + SPRING : 'none';
     v.style.transform = d ? 'translateY(' + d + 'px)' : '';
     const p = Math.min(1, d / TRIGGER);
-    ptr.style.transition = withTransition ? 'opacity .3s, transform .6s ' + SPRING : 'none';
-    ptr.style.opacity = d > 4 ? Math.min(1, p * 1.4) : 0;
-    ptr.style.transform = 'translate(-50%, ' + Math.min(d * 0.55, 34) + 'px) scale(' + (0.6 + 0.4 * p) + ')';
-    if (!busy) {
-      tri.style.rotate = Math.round(p * 220) + 'deg';
-      ptr.classList.toggle('ready', p >= 1);
-    }
+    aur.style.transition = withTransition ? 'height .6s ' + SPRING + ', opacity .5s ease' : 'none';
+    aur.style.height = (navH() + d + 40) + 'px';
+    if (!busy) aur.style.opacity = d > 2 ? Math.min(1, p * 1.15).toFixed(3) : '0';
+    aur.classList.toggle('live', d > 2 || busy);
+    aur.classList.toggle('ready', p >= 1 && !busy);
     // Large title stretches a little, like iOS.
     const lt = v.querySelector('.large-title h1');
     if (lt) { lt.style.transition = v.style.transition; lt.style.transformOrigin = 'left bottom'; lt.style.transform = d ? 'scale(' + (1 + Math.min(d, 120) / 1400) + ')' : ''; }
@@ -303,15 +301,14 @@
       busy = true;
       App.haptic();
       setPull(HOLD, true);
-      ptr.classList.remove('ready'); ptr.classList.add('spin'); tri.style.rotate = ''; tri.classList.add('go');
+      aur.classList.add('busy');
       const t0 = Date.now();
       try { await Store.refresh(); } catch (err) {}
-      await new Promise((r) => setTimeout(r, Math.max(0, 650 - (Date.now() - t0))));
-      ptr.classList.remove('spin'); ptr.classList.add('done'); tri.classList.remove('go');
-      await new Promise((r) => setTimeout(r, 260));
-      ptr.classList.remove('done');
+      await new Promise((r) => setTimeout(r, Math.max(0, 1400 - (Date.now() - t0))));   // let the lights play a moment
       busy = false;
+      aur.classList.remove('busy');
       setPull(0, true);
+      setTimeout(() => { if (!busy && !pulling) aur.classList.remove('live'); }, 650);
       App.toast(Store.status === 'idle' ? 'Up to date' : (Store.outbox.length ? 'Offline: changes will sync later' : (Store.lastError || 'Could not reach the database')));
     } else {
       setPull(0, true);

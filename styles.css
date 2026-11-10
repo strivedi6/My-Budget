@@ -311,8 +311,6 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* Code entered: dots swap for the loader and the keypad slides down out of the way */
 .pin-stage { position: relative; }
 .pin-dots { transition: opacity .25s, transform .35s var(--ease); position: relative; z-index: 2; }
-.pin-load { position: absolute; left: 0; right: 0; top: 50%; height: 64px; margin-top: -32px; display: grid; place-items: center; opacity: 0; transform: scale(.5); transition: opacity .3s, transform .5s cubic-bezier(.34, 1.4, .64, 1); pointer-events: none; }
-.pin-load .ld { font-size: 17px; }
 .pin-dots i { will-change: translate, scale; }
 .lock.waiting .pin-dots i { opacity: .6; background: var(--text); }
 .lock.leaving { pointer-events: none; will-change: mask-image; }
@@ -320,7 +318,6 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 /* Soft glow that the merged dots become; it swells to the screen edges and fades as the app appears */
 .reveal-orb { position: fixed; z-index: 102; border-radius: 50%; pointer-events: none; will-change: transform, opacity;
   background: radial-gradient(circle, color-mix(in srgb, var(--text) 85%, transparent) 0%, color-mix(in srgb, var(--text) 45%, transparent) 28%, color-mix(in srgb, var(--accent) 22%, transparent) 50%, transparent 70%); }
-.lock.checking .pin-load { opacity: 1; transform: none; }
 .keypad { transition: transform .6s cubic-bezier(.32, .72, 0, 1), opacity .4s; }
 .lock.checking .keypad { transform: translateY(70%); opacity: 0; pointer-events: none; }
 .lock.waiting .avatar-xl .ripple { animation-play-state: paused; opacity: 0; }
@@ -410,167 +407,56 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .circle:active, .fab:active { transform: scale(.9); }
 .li { transition: opacity .15s, background .2s; }
 .card, .stat, .menu, .day-group { transform-origin: center top; }
-#ptr { position: fixed; z-index: 15; left: 50%; top: calc(var(--safe-t) + var(--top-gap) + 58px); transform: translate(-50%, 0) scale(.6); opacity: 0; pointer-events: none; }
-/* Loader: three accent dots in a triangle that turns in 60-degree steps, then folds into one dot and pops back out.
-   Used for pull-to-refresh and while the sign-in code is checked. Size it with font-size. */
-.tri3 { position: relative; display: inline-block; width: 2.6em; height: 2.6em; font-size: 14px; vertical-align: middle; }
-.tri3 > span { position: absolute; inset: 0; }
-.tri3 i { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: rotate(var(--a)); }
-.tri3 i:nth-child(1) { --a: 0deg; } .tri3 i:nth-child(2) { --a: 120deg; } .tri3 i:nth-child(3) { --a: 240deg; }
-.tri3 b { position: absolute; left: -.26em; top: -.26em; width: .52em; height: .52em; border-radius: 50%; background: var(--accent); translate: 0 -1em; }
-.tri3.go > span { animation: tri3Turn 4.4s infinite; }
-.tri3.go b { animation: tri3Fold 4.4s cubic-bezier(.5,0,.3,1) infinite; }
-@keyframes tri3Turn {
-    0% { rotate: 0deg; scale: 1; }
-  0.00% { rotate: 0deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
-  2.95% { scale: .86; }
-  5.91% { rotate: 60deg; scale: 1; }
-  13.64% { rotate: 60deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
-  16.59% { scale: .86; }
-  19.55% { rotate: 120deg; scale: 1; }
-  27.27% { rotate: 120deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
-  30.23% { scale: .86; }
-  33.18% { rotate: 180deg; scale: 1; }
-  40.91% { rotate: 180deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
-  43.86% { scale: .86; }
-  46.82% { rotate: 240deg; scale: 1; }
-  54.55% { rotate: 240deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
-  57.50% { scale: .86; }
-  60.45% { rotate: 300deg; scale: 1; }
-  68.18% { rotate: 300deg; scale: 1; animation-timing-function: cubic-bezier(.55,0,.3,1); }
-  71.14% { scale: .86; }
-  74.09% { rotate: 360deg; scale: 1; }
-  100% { rotate: 360deg; scale: 1; }
-}
-@keyframes tri3Fold {
-  0%, 81.82% { translate: 0 -1em; scale: 1; opacity: 1; }
-  86.82% { translate: 0 0; scale: .9; }
-  90.82% { translate: 0 0; scale: .45; }
-  94.82% { translate: 0 0; scale: 1.15; }
-  98.82% { translate: 0 -1.15em; scale: .95; }
-  100% { translate: 0 -1em; scale: 1; opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) { .tri3.go > span, .tri3.go b { animation-duration: 9s; } }
-/* ---------- Loading animations: shared box ---------- */
-.ld { position: relative; display: inline-grid; place-items: center; width: 2.8em; height: 2.8em; font-size: 14px; vertical-align: middle; color: var(--accent); }
-.ld > svg { overflow: visible; }
-#ptr.ready .ld { animation: ldPop .4s cubic-bezier(.34, 1.56, .64, 1); }
-#ptr.done .ld { animation: ldOut .3s ease-in forwards; }
-@keyframes ldPop { 50% { scale: 1.2; } }
-@keyframes ldOut { to { scale: .3; opacity: 0; } }
-
-/* 1. Goo: three balls circle, melt into one blob, wobble, split (SVG filter #mb-goo) */
-.ld-goo > svg { width: 3.4em; height: 3.4em; }
-.ld-goo .arm { transform: rotate(var(--a)); }
-.ld-goo .ball { transform-box: fill-box; transform-origin: center; translate: 0 -12px; }
-.ld-goo .b0 { fill: color-mix(in oklch, var(--accent) 55%, #fff); }
-.ld-goo .b1 { fill: var(--accent); }
-.ld-goo .b2 { fill: color-mix(in oklch, var(--accent) 78%, #000); }
-.ld-goo .blob, .ld-goo .orbit { transform-origin: 0 0; }
-.ld-goo.go .ball { animation: gooGather 2.4s cubic-bezier(.65, 0, .35, 1) infinite; }
-.ld-goo.go .orbit { animation: gooOrbit 2.4s cubic-bezier(.45, .05, .55, .95) infinite; }
-.ld-goo.go .blob { animation: gooSquish 2.4s ease-in-out infinite; }
-@keyframes gooGather { 0%, 30% { translate: 0 -12px; scale: 1; } 48%, 66% { translate: 0 -2.5px; scale: 1.3; } 80% { translate: 0 -14px; scale: .92; } 90%, 100% { translate: 0 -12px; scale: 1; } }
-@keyframes gooOrbit { 0% { rotate: 0deg; } 35% { rotate: 140deg; } 70% { rotate: 230deg; } 100% { rotate: 360deg; } }
-@keyframes gooSquish { 0%, 44% { scale: 1 1; } 52% { scale: 1.3 .8; } 59% { scale: .85 1.2; } 66% { scale: 1.15 .9; } 74%, 100% { scale: 1 1; } }
-
-/* 3. Hopscotch: balls hop corner to corner with soft reflections */
-.ld-hop i { --x: 0em; --y: -.79em; --c: var(--accent); position: absolute; left: 50%; top: 50%; width: 0; height: 0; translate: var(--x) var(--y); }
-.ld-hop i:nth-child(2) { --x: .93em; --y: .64em; --c: color-mix(in oklch, var(--accent) 72%, #fff); }
-.ld-hop i:nth-child(3) { --x: -.93em; --y: .64em; --c: color-mix(in oklch, var(--accent) 48%, #fff); }
-.ld-hop b, .ld-hop s { position: absolute; left: -.36em; width: .72em; height: .72em; border-radius: 50%; }
-.ld-hop b { top: -.36em; background: var(--c); box-shadow: 0 0 .7em color-mix(in srgb, var(--c) 40%, transparent); transform-origin: 50% 100%; }
-.ld-hop s { top: .45em; background: var(--c); opacity: .22; filter: blur(.18em); transform: scaleY(.55); }
-.ld-hop.go i { animation: hopMove 1.5s infinite; }
-.ld-hop.go i:nth-child(2) { animation-delay: -1s; } .ld-hop.go i:nth-child(3) { animation-delay: -.5s; }
-.ld-hop.go b { animation: hopHop .5s infinite; }
-.ld-hop.go s { animation: hopShade .5s infinite; }
-@keyframes hopMove { 0% { translate: 0 -.79em; animation-timing-function: cubic-bezier(.45, 0, .55, 1); } 33.333% { translate: .93em .64em; animation-timing-function: cubic-bezier(.45, 0, .55, 1); } 66.667% { translate: -.93em .64em; animation-timing-function: cubic-bezier(.45, 0, .55, 1); } 100% { translate: 0 -.79em; } }
-@keyframes hopHop { 0% { transform: translateY(0) scale(1.18, .8); animation-timing-function: cubic-bezier(.2, .7, .4, 1); } 14% { transform: translateY(-.14em) scale(.92, 1.1); animation-timing-function: cubic-bezier(.2, .7, .4, 1); } 50% { transform: translateY(-.72em); animation-timing-function: cubic-bezier(.6, 0, .8, .3); } 100% { transform: translateY(0) scale(1.18, .8); } }
-@keyframes hopShade { 0%, 100% { opacity: .28; transform: scaleY(.55) scaleX(1.15); } 50% { opacity: .08; transform: scaleY(.45) scaleX(.6); } }
-
-/* 4. Halo: a ring that sweeps and breathes around a pulsing core */
-.ld-halo > svg { width: 2.4em; height: 2.4em; }
-.ld-halo .trk { fill: none; stroke: color-mix(in srgb, var(--accent) 18%, transparent); stroke-width: 3; }
-.ld-halo .rot { transform-origin: 16px 16px; rotate: -90deg; }
-.ld-halo .arc { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 69.12; stroke-dashoffset: 26; }
-.ld-halo .core { fill: var(--accent); transform-origin: 16px 16px; }
-.ld-halo.go .rot { animation: haloRot 1.1s linear infinite; }
-.ld-halo.go .arc { animation: haloArc 1.4s cubic-bezier(.45, 0, .25, 1) infinite; }
-.ld-halo.go .core { animation: haloCore 1.4s ease-in-out infinite; }
-@keyframes haloRot { from { rotate: -90deg; } to { rotate: 270deg; } }
-@keyframes haloArc { 0%, 100% { stroke-dashoffset: 62; } 50% { stroke-dashoffset: 18; } }
-@keyframes haloCore { 0%, 100% { scale: .75; opacity: .75; } 50% { scale: 1.2; opacity: 1; } }
-
-/* 5. Ripple: rings spread out from a beating dot */
-.ld-ripple i { position: absolute; inset: .15em; border-radius: 50%; border: .12em solid var(--accent); opacity: 0; }
-.ld-ripple i:first-child { opacity: .4; scale: .6; }
-.ld-ripple b { width: .62em; height: .62em; border-radius: 50%; background: var(--accent); }
-.ld-ripple.go i { animation: ripOut 1.8s cubic-bezier(.2, .6, .3, 1) infinite; }
-.ld-ripple.go i:nth-child(2) { animation-delay: .6s; } .ld-ripple.go i:nth-child(3) { animation-delay: 1.2s; }
-.ld-ripple.go b { animation: ripBeat .6s ease-in-out infinite; }
-@keyframes ripOut { 0% { scale: .25; opacity: .9; } 100% { scale: 1.05; opacity: 0; } }
-@keyframes ripBeat { 0%, 100% { scale: 1; } 30% { scale: .7; } }
-
-/* 6. Equaliser: five bars bouncing like a music meter */
-.ld-bars { display: inline-flex; align-items: center; justify-content: center; gap: .2em; }
-.ld-bars i { width: .26em; height: 1.7em; border-radius: .13em; background: var(--accent); scale: 1 .35; }
-.ld-bars i:nth-child(even) { background: color-mix(in oklch, var(--accent) 65%, #fff); }
-.ld-bars.go i { animation: barUp 1s cubic-bezier(.45, 0, .55, 1) infinite; }
-.ld-bars.go i:nth-child(2) { animation-delay: -.8s; } .ld-bars.go i:nth-child(3) { animation-delay: -.6s; } .ld-bars.go i:nth-child(4) { animation-delay: -.4s; } .ld-bars.go i:nth-child(5) { animation-delay: -.2s; }
-@keyframes barUp { 0%, 100% { scale: 1 .3; } 50% { scale: 1 1; } }
-
-/* 7. Wave: dots rise and fall in a wave */
-.ld-wave { display: inline-flex; align-items: center; justify-content: center; gap: .18em; width: 3em; }
-.ld-wave i { width: .38em; height: .38em; border-radius: 50%; background: var(--accent); }
-.ld-wave.go i { animation: waveY 1.2s cubic-bezier(.45, 0, .55, 1) infinite; }
-.ld-wave.go i:nth-child(2) { animation-delay: .1s; } .ld-wave.go i:nth-child(3) { animation-delay: .2s; } .ld-wave.go i:nth-child(4) { animation-delay: .3s; } .ld-wave.go i:nth-child(5) { animation-delay: .4s; }
-@keyframes waveY { 0%, 60%, 100% { translate: 0 0; scale: 1; opacity: .55; } 30% { translate: 0 -.65em; scale: 1.15; opacity: 1; } }
-
-/* 8. Helix: two strands of dots twist past each other like DNA */
-.ld-helix { display: inline-flex; align-items: center; justify-content: center; gap: .16em; width: 3em; }
-.ld-helix i { position: relative; width: .3em; height: 1.9em; }
-.ld-helix b { position: absolute; left: 0; top: 50%; width: .3em; height: .3em; margin-top: -.15em; border-radius: 50%; background: var(--accent); }
-.ld-helix b + b { background: color-mix(in oklch, var(--accent) 55%, #fff); translate: 0 .7em; }
-.ld-helix b:first-child { translate: 0 -.7em; }
-.ld-helix.go b { animation: helix 1.6s linear infinite; }
-.ld-helix.go b + b { animation-delay: -.8s; }
-.ld-helix.go i:nth-child(2) b:first-child { animation-delay: -.13s; } .ld-helix.go i:nth-child(2) b + b { animation-delay: -.93s; }
-.ld-helix.go i:nth-child(3) b:first-child { animation-delay: -.26s; } .ld-helix.go i:nth-child(3) b + b { animation-delay: -1.06s; }
-.ld-helix.go i:nth-child(4) b:first-child { animation-delay: -.39s; } .ld-helix.go i:nth-child(4) b + b { animation-delay: -1.19s; }
-.ld-helix.go i:nth-child(5) b:first-child { animation-delay: -.52s; } .ld-helix.go i:nth-child(5) b + b { animation-delay: -1.32s; }
-.ld-helix.go i:nth-child(6) b:first-child { animation-delay: -.65s; } .ld-helix.go i:nth-child(6) b + b { animation-delay: -1.45s; }
-.ld-helix.go i:nth-child(7) b:first-child { animation-delay: -.78s; } .ld-helix.go i:nth-child(7) b + b { animation-delay: -1.58s; }
-@keyframes helix {
-  0% { translate: 0 -.7em; scale: .8; opacity: .8; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
-  25% { translate: 0 0; scale: 1.25; opacity: 1; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
-  50% { translate: 0 .7em; scale: .8; opacity: .8; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
-  75% { translate: 0 0; scale: .45; opacity: .35; animation-timing-function: cubic-bezier(.37, 0, .63, 1); }
-  100% { translate: 0 -.7em; scale: .8; opacity: .8; } }
-
-/* 9. Morph: a soft shape that tumbles between circle, square and blob */
-.ld-morph i { width: 1.35em; height: 1.35em; border-radius: 50%; background: var(--accent); box-shadow: 0 .3em .9em -.2em color-mix(in srgb, var(--accent) 60%, transparent); }
-.ld-morph.go i { animation: morph 2.4s cubic-bezier(.6, 0, .4, 1) infinite; }
-@keyframes morph {
-  0% { border-radius: 50%; rotate: 0deg; scale: 1; }
-  25% { border-radius: 22%; rotate: 90deg; scale: .82; background: color-mix(in oklch, var(--accent) 70%, #fff); }
-  50% { border-radius: 50%; rotate: 180deg; scale: 1.08; }
-  75% { border-radius: 62% 38% 55% 45% / 40% 58% 42% 60%; rotate: 270deg; scale: .9; background: color-mix(in oklch, var(--accent) 80%, #000); }
-  100% { border-radius: 50%; rotate: 360deg; scale: 1; } }
-
-/* 10. Comet: a dot whips round a circle, its tail fading behind */
-.ld-comet > span { position: absolute; inset: 0; }
-.ld-comet i { position: absolute; left: 50%; top: 50%; width: var(--s); height: var(--s); margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2); border-radius: 50%; background: var(--accent); opacity: var(--o); transform: rotate(var(--a)) translateY(-1em); }
-.ld-comet.go > span { animation: comet 1.2s cubic-bezier(.55, .1, .45, .9) infinite; }
-@keyframes comet { to { rotate: 360deg; } }
-@media (prefers-reduced-motion: reduce) { .ld.go *, .ld.go > span { animation-duration: 4s !important; } }
-
-/* Settings: loading animation picker */
-.ld-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
-.ld-tile { display: grid; justify-items: center; gap: 8px; padding: 16px 6px 12px; border-radius: 20px; background: var(--fill-4); font-size: 13px; font-weight: 500; color: var(--text); letter-spacing: -0.08px; box-shadow: inset 0 0 0 1.5px transparent; transition: box-shadow .25s, background .25s, transform .4s cubic-bezier(.34, 1.4, .64, 1); }
-.ld-tile .ld { height: 3.4em; }
-.ld-tile.on { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
-.ld-tile:active { transform: scale(.95); }
+/* ---------- Pull to refresh: aurora in the accent colour, behind the status bar and top bar ---------- */
+#aurora { position: fixed; z-index: 19; top: 0; left: 0; right: 0; height: 0; opacity: 0; overflow: hidden; pointer-events: none; contain: strict;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent);
+  --a1: var(--accent); --a2: color-mix(in oklch, var(--accent) 55%, #fff); --a3: color-mix(in oklch, var(--accent) 70%, var(--p2)); --a4: color-mix(in oklch, var(--accent) 75%, #000); }
+#aurora .sky { position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 22%, #050713) 0%, color-mix(in oklch, var(--accent) 14%, #0a0e24) 60%, transparent 100%); }
+:root[data-theme="light"] #aurora .sky { background: linear-gradient(180deg, color-mix(in oklch, var(--accent) 30%, #141a3a) 0%, color-mix(in oklch, var(--accent) 22%, #2a3160) 55%, transparent 100%); }
+#aurora { --a5: var(--p2); }
+@supports (color: oklch(from red l c h)) { #aurora { --a5: oklch(from var(--accent) calc(l + .05) c calc(h + 55)); --a6: oklch(from var(--accent) l c calc(h - 35)); } }
+#aurora .lights { position: absolute; inset: -6% -10% 0; }
+/* glows: soft wide light behind the curtains */
+#aurora .lights b { position: absolute; left: -15%; width: 130%; height: 75%; top: 12%; border-radius: 50%; opacity: .5; filter: blur(22px); mix-blend-mode: screen; will-change: transform;
+  background: radial-gradient(ellipse at 50% 60%, var(--a1) 0%, color-mix(in srgb, var(--a1) 30%, transparent) 40%, transparent 70%); }
+#aurora .lights b + b { left: 10%; width: 110%; top: 0; opacity: .35; background: radial-gradient(ellipse at 40% 55%, var(--a5) 0%, transparent 65%); }
+/* curtains: arched bands of fine rays, bright along the bottom edge and fading upwards */
+#aurora .lights i { position: absolute; left: -30%; width: 160%; height: 72%; border-radius: 50% 50% 0 0 / 100% 100% 0 0; opacity: .85; mix-blend-mode: screen; transform-origin: 50% 100%; will-change: transform, opacity;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 5px, color-mix(in srgb, var(--c) 75%, #fff) 6px 7px, transparent 8px 14px, color-mix(in srgb, var(--c) 55%, transparent) 15px 17px, transparent 18px 27px),
+    linear-gradient(0deg, color-mix(in oklch, var(--c) 70%, #fff) 0%, var(--c) 10%, color-mix(in srgb, var(--c) 45%, transparent) 35%, transparent 85%);
+  -webkit-mask-image: linear-gradient(0deg, transparent 0%, #000 6%, #000 30%, transparent 92%); mask-image: linear-gradient(0deg, transparent 0%, #000 6%, #000 30%, transparent 92%);
+  filter: blur(1.6px); }
+#aurora .lights i:nth-child(1) { --c: var(--a1); top: 14%; }
+#aurora .lights i:nth-child(2) { --c: var(--a5); top: 0; left: -10%; width: 120%; opacity: .7; }
+#aurora .lights i:nth-child(3) { --c: var(--a2); top: 26%; left: -45%; opacity: .6; }
+#aurora .lights i:nth-child(n+4) { display: none; }
+#aurora .stars { position: absolute; inset: 0; opacity: .8; background-repeat: no-repeat;
+  background-image: radial-gradient(1.2px 1.2px at 8% 22%, #fff 99%, transparent), radial-gradient(1px 1px at 23% 58%, #fff 99%, transparent), radial-gradient(1.4px 1.4px at 41% 15%, #fff 99%, transparent),
+    radial-gradient(1px 1px at 57% 44%, #fff 99%, transparent), radial-gradient(1.3px 1.3px at 72% 20%, #fff 99%, transparent), radial-gradient(1px 1px at 88% 52%, #fff 99%, transparent), radial-gradient(1.2px 1.2px at 95% 12%, #fff 99%, transparent); }
+#aurora .stars.s2 { opacity: .5; background-image: radial-gradient(1px 1px at 15% 40%, #fff 99%, transparent), radial-gradient(1.3px 1.3px at 33% 30%, #fff 99%, transparent), radial-gradient(1px 1px at 49% 62%, #fff 99%, transparent),
+    radial-gradient(1.1px 1.1px at 66% 10%, #fff 99%, transparent), radial-gradient(1px 1px at 80% 36%, #fff 99%, transparent); }
+#aurora.live .lights i { animation: curtain 9s ease-in-out infinite alternate, shimmer 2.8s ease-in-out infinite alternate; }
+#aurora.live .lights i:nth-child(2) { animation-duration: 11s, 3.6s; animation-delay: -4s, -1.2s; animation-direction: alternate-reverse, alternate; }
+#aurora.live .lights i:nth-child(3) { animation-duration: 7.5s, 2.2s; animation-delay: -2s, -.6s; }
+#aurora.live .lights b { animation: glowDrift 10s ease-in-out infinite alternate; }
+#aurora.live .lights b + b { animation-duration: 13s; animation-direction: alternate-reverse; }
+#aurora.live .stars { animation: twinkle 2.6s ease-in-out infinite alternate; }
+#aurora.live .stars.s2 { animation-duration: 3.4s; animation-delay: -1.3s; }
+/* while refreshing, the lights dance a little faster and brighter */
+/* while refreshing, the lights dance a little faster and brighter */
+#aurora.busy .lights i { animation-duration: 5s, 1.6s; }
+#aurora.busy .lights, #aurora.ready .lights { filter: brightness(1.18); }
+#aurora .lights { transition: filter .4s; }
+@keyframes curtain {
+  0% { transform: translateX(-7%) rotate(-5deg) skewX(14deg) scaleY(.85); }
+  35% { transform: translateX(2%) rotate(2deg) skewX(-6deg) scaleY(1.12); }
+  70% { transform: translateX(6%) rotate(-2deg) skewX(10deg) scaleY(.95); }
+  100% { transform: translateX(-2%) rotate(5deg) skewX(-14deg) scaleY(1.08); } }
+@keyframes shimmer { 0% { opacity: .45; } 100% { opacity: .95; } }
+@keyframes glowDrift { 0% { transform: translateX(-8%) scale(1, .9); } 100% { transform: translateX(8%) scale(1.1, 1.15); } }
+@keyframes twinkle { 0% { opacity: .25; } 100% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { #aurora.live .lights i, #aurora.live .lights b, #aurora.live .stars { animation-duration: 20s !important; } }
 .sheet.in .sh-b > * { animation: rise .5s var(--ease) backwards; }
 .sheet.in .sh-b > *:nth-child(2) { animation-delay: .03s; } .sheet.in .sh-b > *:nth-child(3) { animation-delay: .06s; } .sheet.in .sh-b > *:nth-child(4) { animation-delay: .09s; } .sheet.in .sh-b > *:nth-child(n+5) { animation-delay: .12s; }
 @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
@@ -595,7 +481,11 @@ html.is-locked, html.is-locked body { overflow: hidden; height: 100%; overscroll
 html.is-locked body { position: fixed; inset: 0; touch-action: none; }
 html.is-locked { background: var(--bg); }
 /* Fill the whole screen, including under the home bar (100dvh stops short in Home Screen apps). */
-.lock { position: fixed; inset: 0; min-height: 0; height: auto; overflow: visible; background: transparent; touch-action: none; }
+.lock { position: fixed; top: 0; left: 0; right: 0; bottom: auto; height: 100vh; height: 100lvh; min-height: 0; overflow: visible; background: transparent; touch-action: none; }
+.lock { display: flex; place-items: initial; padding: 0 24px; }
+.lock-card { display: flex; flex-direction: column; align-items: stretch; margin: 0 auto; height: 100%;
+  padding: calc(var(--safe-t) + max(28px, 9vh)) 0 calc(var(--safe-b) + max(18px, 4vh)); }
+.lock-card .keypad { margin-top: auto; }
 .lock::before { content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: -60px; bottom: calc(-1 * var(--safe-b) - 200px); background: var(--bg); pointer-events: none; }
 .lock-card { position: relative; z-index: 1; }
 .lock-bg { position: absolute; inset: -20% -20% calc(-20% - 200px); pointer-events: none; filter: blur(60px); opacity: .9; }
