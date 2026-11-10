@@ -37,7 +37,7 @@
   // gets an invisible switch laid over it. The tap still reaches the control as a normal click.
   const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   App.haptic = () => { try { if (!IOS && navigator.vibrate) navigator.vibrate(8); } catch (e) {} };
-  const HAPTIC = '.btn, .circle, .fab, .tab, .chip, .seg button, .cat-opt, .monthsw button, .icon-btn, button.swatch, .icon-grid button, .menu .li, [data-spend], .keypad button, .keypad .fn';
+  const HAPTIC = '.btn, .circle, .fab, .tab, .chip, .pd-btn, .pd-menu button, .seg button, .cat-opt, .monthsw button, .icon-btn, button.swatch, .icon-grid button, .menu .li, [data-spend], .keypad button, .keypad .fn';
   function armHaptics(root) {
     if (!IOS) return;
     (root.matches && root.matches(HAPTIC) ? [root] : []).concat(Array.from(root.querySelectorAll ? root.querySelectorAll(HAPTIC) : [])).forEach((el) => {

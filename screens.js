@@ -288,17 +288,27 @@
 
   /* ================= INSIGHTS ================= */
   const ITABS = [['pnl', 'P&L'], ['savings', 'Savings'], ['forecast', 'Forecast'], ['compare', 'Compare'], ['plan', 'Plan'], ['tips', 'Tips']];
+  const ITAB_FULL = { pnl: ['Profit & loss', 'scale'], savings: ['Savings', 'bank'], forecast: ['Forecast', 'trending'], compare: ['Compare', 'layers'], plan: ['Smart budget', 'target'], tips: ['Tips to save', 'star'] };
+  const CMP_MODES = [['prev', 'Last month', 'left'], ['lastyear', 'Same month last year', 'calendar'], ['custom', 'Pick a month…', 'edit'], ['yearly', 'Year vs year', 'chart']];
   App.screens.insights = {
     title: 'Insights',
     month: () => !['plan', 'tips'].includes(App.ui.insights),
     subtitle: () => (App.ui.insights === 'plan' || App.ui.insights === 'tips' ? 'Learned from your spending' : App.ui.insights === 'pnl' || App.ui.insights === 'compare' ? Calc.monthLabel(App.ui.month) : 'Year ' + App.ui.month.slice(0, 4)),
     render() {
       const t = App.ui.insights;
-      const seg = '<div class="seg full" id="itabs" style="margin-bottom:18px">' + ITABS.map((x) => '<button data-i="' + x[0] + '" class="' + (t === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>';
+      // Desktop: a segmented control. Phone: pull-down menus (iOS style), so the top stays calm.
+      const seg = '<div class="seg full only-desk" id="itabs" style="margin-bottom:18px">' + ITABS.map((x) => '<button data-i="' + x[0] + '" class="' + (t === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>' +
+        '<div class="pd-row only-mob"><button class="pd-btn glass press" id="ins-pick" aria-haspopup="menu">' + icon(ITAB_FULL[t][1], 17) + '<span>' + ITAB_FULL[t][0] + '</span>' + icon('down', 15) + '</button>' +
+        (t === 'compare' ? '<button class="pd-btn plain press" id="cmp-pick" aria-haspopup="menu"><span>' + h((CMP_MODES.find((x) => x[0] === App.ui.cmp.mode) || CMP_MODES[0])[1].replace('…', '')) + '</span>' + icon('down', 15) + '</button>' : '') + '</div>';
       return seg + INS[t].render();
     },
     mount(view) {
       view.querySelectorAll('#itabs [data-i]').forEach((b) => (b.onclick = () => { App.ui.insights = b.dataset.i; App.renderView(); }));
+      const ip = view.querySelector('#ins-pick');
+      if (ip) ip.onclick = () => App.pullDown(ip, [['pnl', 'Profit & loss', 'scale'], ['savings', 'Savings', 'bank'], ['forecast', 'Forecast', 'trending'], ['compare', 'Compare', 'layers'], null, ['plan', 'Smart budget', 'target'], ['tips', 'Tips to save', 'star']],
+        App.ui.insights, (v) => { App.ui.insights = v; App.renderView(); });
+      const cp = view.querySelector('#cmp-pick');
+      if (cp) cp.onclick = () => App.pullDown(cp, CMP_MODES, App.ui.cmp.mode, (v) => { App.ui.cmp.mode = v; App.renderView(); });
       INS[App.ui.insights].mount(view);
     }
   };
@@ -478,7 +488,7 @@
       render() {
         const c = App.ui.cmp, key = App.ui.month;
         const modes = [['prev', 'Last month'], ['lastyear', 'Same month last year'], ['custom', 'Pick a month'], ['yearly', 'Year vs year']];
-        const seg = '<div class="chips" id="cmp-modes" style="margin-bottom:14px">' + modes.map((x) => '<button class="chip ' + (c.mode === x[0] ? 'on' : '') + '" data-cm="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
+        const seg = '<div class="chips only-desk" id="cmp-modes" style="margin-bottom:14px">' + modes.map((x) => '<button class="chip ' + (c.mode === x[0] ? 'on' : '') + '" data-cm="' + x[0] + '">' + x[1] + '</button>').join('') + '</div>';
         if (c.mode === 'yearly') return seg + yearly();
         const other = c.mode === 'prev' ? Calc.addMonths(key, -1) : c.mode === 'lastyear' ? Calc.addMonths(key, -12) : (c.custom || Calc.addMonths(key, -1));
         const A = App.calc(key), B = App.calc(other);

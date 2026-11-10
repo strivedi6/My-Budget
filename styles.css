@@ -494,6 +494,25 @@ html.is-locked { background: var(--bg); }
 .money .mprev { white-space: normal; }
 @media (min-width: 1024px) { .money-grid.wide { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
 
+/* ---------- Pull-down menus (iOS style) ---------- */
+.only-desk { display: none !important; }
+.pd-row { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; flex-wrap: wrap; }
+.pd-btn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 13px; border-radius: 999px; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
+.pd-btn .ic { color: var(--accent); }
+.pd-btn span ~ .ic { color: var(--text-2); width: 15px; height: 15px; margin-left: 1px; }
+.pd-btn.plain { background: var(--fill-4); font-weight: 500; }
+.pd-back { position: fixed; inset: 0; z-index: 90; }
+.pd-menu { position: fixed; z-index: 91; min-width: 230px; max-width: calc(100vw - 24px); padding: 6px 0; border-radius: 16px; overflow: hidden;
+  background: color-mix(in srgb, var(--elev) 93%, transparent); -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .22), 0 0 0 .5px var(--sep); }
+.pd-menu button { display: flex; align-items: center; gap: 4px; width: 100%; min-height: 44px; padding: 0 16px 0 10px; font-size: 17px; letter-spacing: -0.4px; color: var(--text); text-align: left; }
+.pd-menu button:active, .pd-menu button:hover { background: var(--fill-4); }
+.pd-menu .ck { width: 24px; display: grid; place-items: center; flex-shrink: 0; color: var(--text); }
+.pd-menu .lb { flex: 1; white-space: nowrap; }
+.pd-menu .lb ~ .ic { color: var(--text); margin-left: 14px; flex-shrink: 0; }
+.pd-menu hr { border: 0; height: 8px; margin: 2px 0; background: var(--fill-4); }
+@media (min-width: 1024px) { .only-desk { display: flex !important; } .chips.only-desk { display: flex !important; } .only-mob { display: none !important; } }
+
 /* ---------- Smart budget (Insights › Plan) ---------- */
 #itabs button { padding-left: 0; padding-right: 0; min-width: 0; flex: 1 1 0; font-size: 13.5px; letter-spacing: -0.3px; }
 .toggle-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 16px; background: var(--fill-4); cursor: pointer; }

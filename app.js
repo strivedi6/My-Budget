@@ -295,6 +295,35 @@
     if (sbs) { sbs.setAttribute('data-s', Store.status); sbs.innerHTML = icon(i.icon, 16) + '<span>' + h(i.text) + '</span>'; }
   };
 
+  /* iOS-style pull-down menu: a glass list that springs open from its button.
+   * items: [[value, label, iconName]], or null for a separator. onPick(value) runs after it closes. */
+  App.pullDown = (anchor, items, value, onPick) => {
+    const r = anchor.getBoundingClientRect();
+    const back = document.createElement('div'); back.className = 'pd-back';
+    const menu = document.createElement('div'); menu.className = 'pd-menu'; menu.setAttribute('role', 'menu');
+    menu.innerHTML = items.map((it) => it ? '<button role="menuitemradio" aria-checked="' + (it[0] === value) + '" data-v="' + h(it[0]) + '"><span class="ck">' + (it[0] === value ? icon('check', 17) : '') + '</span><span class="lb">' + h(it[1]) + '</span>' + (it[2] ? icon(it[2], 19) : '') + '</button>' : '<hr>').join('');
+    document.body.appendChild(back); document.body.appendChild(menu);
+    const w = menu.offsetWidth, hgt = menu.offsetHeight, alignRight = r.left + w > innerWidth - 12;
+    const left = alignRight ? Math.max(12, r.right - w) : Math.max(12, r.left);
+    const below = r.bottom + 8 + hgt < innerHeight - 12;
+    menu.style.left = left + 'px'; menu.style.top = (below ? r.bottom + 8 : Math.max(12, r.top - 8 - hgt)) + 'px';
+    menu.style.transformOrigin = (alignRight ? 'right ' : 'left ') + (below ? 'top' : 'bottom');
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!still) menu.animate([{ transform: 'scale(.5)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 380, easing: 'cubic-bezier(.34, 1.36, .64, 1)' });
+    let closed = false;
+    const close = (v) => {
+      if (closed) return; closed = true;
+      document.removeEventListener('keydown', key);
+      const done = () => { menu.remove(); back.remove(); if (v !== undefined && v !== value) onPick(v); };
+      if (still) return done();
+      menu.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(.85)', opacity: 0 }], { duration: 170, easing: 'ease-in', fill: 'forwards' }).onfinish = done;
+    };
+    const key = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', key);
+    back.addEventListener('click', () => close());
+    menu.querySelectorAll('[data-v]').forEach((b) => (b.onclick = () => { App.haptic(); close(b.dataset.v); }));
+  };
+
   App.monthSwitcher = () => {
     const m = App.ui.month, cur = m === Calc.currentMk();
     return '<div class="monthsw glass"><button data-mprev aria-label="Previous month">' + icon('left', 18) + '</button>' +
