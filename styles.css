@@ -499,15 +499,25 @@ html.is-locked { background: var(--bg); }
 .money .mprev { white-space: normal; }
 @media (min-width: 1024px) { .money-grid.wide { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } }
 
+/* ---------- Category icon row (opens the icon picker) ---------- */
+.icon-pick { display: flex; align-items: center; gap: 12px; width: 100%; height: 56px; padding: 0 14px 0 10px; border-radius: 14px; background: var(--fill-4); color: var(--text); font-size: 17px; text-align: left; }
+.icon-pick .cat-ic { width: 38px; height: 38px; border-radius: 11px; }
+.icon-pick .lbl { flex: 1; }
+.icon-pick .chev { width: 16px; height: 16px; color: var(--text-3); }
 /* ---------- Pull-down menus (iOS style) ---------- */
 .only-desk { display: none !important; }
 .pd-row { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; flex-wrap: wrap; }
 .pd-btn { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 13px; border-radius: 999px; font-size: 15px; font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
 .pd-btn .ic { color: var(--accent); }
 .pd-btn span ~ .ic { color: var(--text-2); width: 15px; height: 15px; margin-left: 1px; }
-.pd-btn.plain { background: var(--fill-4); font-weight: 500; }
+.pd-btn.plain { background: var(--fill-4); font-weight: 500; min-width: 0; }
+.pd-btn span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38vw; }
+.pd-btn.set { color: var(--accent); }
+.pd-btn.icon-only { width: 38px; padding: 0; justify-content: center; margin-left: auto; }
+.pd-btn.icon-only .ic { color: var(--accent); width: 18px; height: 18px; }
+.toolbar .pd-row { flex-wrap: nowrap; gap: 8px; }
 .pd-back { position: fixed; inset: 0; z-index: 90; }
-.pd-menu { position: fixed; z-index: 91; min-width: 230px; max-width: calc(100vw - 24px); padding: 6px 0; border-radius: 16px; overflow: hidden;
+.pd-menu { position: fixed; z-index: 91; min-width: 230px; max-width: calc(100vw - 24px); padding: 6px 0; border-radius: 16px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
   background: color-mix(in srgb, var(--elev) 93%, transparent); -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
   box-shadow: 0 18px 50px rgba(0, 0, 0, .22), 0 0 0 .5px var(--sep); }
 .pd-menu button { display: flex; align-items: center; gap: 4px; width: 100%; min-height: 44px; padding: 0 16px 0 10px; font-size: 17px; letter-spacing: -0.4px; color: var(--text); text-align: left; }
@@ -516,7 +526,7 @@ html.is-locked { background: var(--bg); }
 .pd-menu .lb { flex: 1; white-space: nowrap; }
 .pd-menu .lb ~ .ic { color: var(--text); margin-left: 14px; flex-shrink: 0; }
 .pd-menu hr { border: 0; height: 8px; margin: 2px 0; background: var(--fill-4); }
-@media (min-width: 1024px) { .only-desk { display: flex !important; } .chips.only-desk { display: flex !important; } .only-mob { display: none !important; } }
+@media (min-width: 1024px) { .only-desk { display: flex !important; } select.only-desk { display: inline-block !important; } button.only-desk { display: inline-grid !important; } .chips.only-desk { display: flex !important; } .only-mob { display: none !important; } }
 
 /* ---------- Planned payments ---------- */
 [hidden] { display: none !important; }

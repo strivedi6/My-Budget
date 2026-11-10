@@ -197,7 +197,7 @@
     App.sheet({
       title: isNew ? 'New category' : 'Edit category', wide: true,
       body: '<label class="field"><span>Name</span><input class="input" id="c-name" value="' + h(c.name) + '" placeholder="e.g. Gym"></label>' +
-        '<div class="field"><span>Icon</span><div class="icon-grid" id="c-icons">' + Object.keys(window.CAT_ICONS).map((k) => '<button data-i="' + k + '" class="' + (c.icon === k ? 'on' : '') + '" title="' + k + '">' + catIcon(k, 20) + '</button>').join('') + '</div></div>' +
+        '<div class="field"><span>Icon</span><button type="button" class="icon-pick" id="c-icon-btn"><span class="cat-ic" id="c-icon-prev">' + catIcon(c.icon, 20) + '</span><span class="lbl">Change icon</span>' + chev + '</button></div>' +
         '<div class="field"><span>Who it belongs to</span>' + seg('c-type', [['shared', 'Shared'], ['personal', 'Personal']], c.type) + '<small>Shared costs are split by income share. Personal costs belong to one person.</small></div>' +
         '<div class="field" id="c-owner-f"><span>Whose</span>' + seg('c-owner', [[0, 'Whoever paid'], [1, App.first1()], [2, App.first2()]], c.owner) + '</div>' +
         '<div class="field"><span>Group</span>' + seg('c-group', GROUPS.map((g) => [g[0], g[1]]), c.group) + '</div>' +
@@ -208,7 +208,19 @@
         const segBind = (id, key, after) => el.querySelectorAll('#' + id + ' button').forEach((b) => (b.onclick = () => { c[key] = b.dataset.v; el.querySelectorAll('#' + id + ' button').forEach((x) => x.classList.toggle('on', x === b)); if (after) after(); }));
         const vis = () => { el.querySelector('#c-owner-f').style.display = c.type === 'personal' ? '' : 'none'; el.querySelector('#c-budget-f').style.display = c.kind === 'budgeted' ? '' : 'none'; };
         segBind('c-type', 'type', vis); segBind('c-owner', 'owner'); segBind('c-group', 'group'); segBind('c-kind', 'kind', vis); vis();
-        el.querySelectorAll('#c-icons button').forEach((b) => (b.onclick = () => { c.icon = b.dataset.i; el.querySelectorAll('#c-icons button').forEach((x) => x.classList.toggle('on', x === b)); }));
+        // Icon picker opens in its own sheet, so the form stays short.
+        el.querySelector('#c-icon-btn').onclick = () => App.sheet({
+          title: 'Choose icon', wide: true,
+          body: '<div class="icon-grid" id="c-icons">' + Object.keys(window.CAT_ICONS).map((k) => '<button data-i="' + k + '" class="' + (c.icon === k ? 'on' : '') + '" title="' + k + '">' + catIcon(k, 22) + '</button>').join('') + '</div>',
+          onMount(e2, a2) {
+            e2.querySelectorAll('#c-icons button').forEach((b) => (b.onclick = () => {
+              c.icon = b.dataset.i; App.haptic();
+              e2.querySelectorAll('#c-icons button').forEach((x) => x.classList.toggle('on', x === b));
+              el.querySelector('#c-icon-prev').innerHTML = catIcon(c.icon, 20);
+              setTimeout(() => a2.close(), 180);
+            }));
+          }
+        });
         el.querySelector('[data-save]').onclick = () => {
           c.name = el.querySelector('#c-name').value.trim();
           if (!c.name) { el.querySelector('#c-name').focus(); return; }

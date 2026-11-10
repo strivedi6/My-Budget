@@ -14,6 +14,7 @@
     return Store.state.categories.map((c) => ({ c, v: m.exp[c.id] || 0, a: m.attrib[c.id] || {} })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
   }
   // How far through the month we are (1 for past months, 0 for future ones).
+  const usedCatsList = () => Store.state.categories.filter((c) => Store.state.spends.some((s) => s.catId === c.id)).sort((a, b) => a.name.localeCompare(b.name));
   function monthFrac(key) { const cur = Calc.currentMk(); return key < cur ? 1 : key > cur ? 0 : Math.min(1, new Date().getDate() / Calc.daysIn(key)); }
   function budgetRows(key, m) {
     const frac = monthFrac(key);
@@ -257,13 +258,19 @@
       const topMer = Object.entries(byMer).sort((a, b) => b[1] - a[1])[0];
       const scopeLbl = f.scope === 'month' ? Calc.monthLabel(key) : f.scope === 'year' ? key.slice(0, 4) : 'All time';
 
-      const usedCats = Store.state.categories.filter((c) => Store.state.spends.some((s) => s.catId === c.id)).sort((a, b) => a.name.localeCompare(b.name));
+      const usedCats = usedCatsList();
       const toolbar = '<div class="toolbar">' +
         '<div class="search grow">' + icon('search', 18) + '<input class="input sm" id="q" type="search" placeholder="Search" value="' + h(f.q) + '"></div>' +
-        '<div class="seg full" id="scope" style="flex:1 1 100%">' + [['month', 'Month'], ['year', 'Year'], ['all', 'All']].map((s) => '<button data-s="' + s[0] + '" class="' + (f.scope === s[0] ? 'on' : '') + '">' + s[1] + '</button>').join('') + '</div>' +
-        '<select class="input sm" id="fcat" style="width:auto;flex:1 1 150px"><option value="">All categories</option>' + usedCats.map((c) => '<option value="' + h(c.id) + '" ' + (f.cat === c.id ? 'selected' : '') + '>' + h(c.name) + '</option>').join('') + '</select>' +
-        '<select class="input sm" id="fpaid" style="width:auto;flex:1 1 110px"><option value="">Anyone</option><option value="1" ' + (f.paid === '1' ? 'selected' : '') + '>' + h(App.first1()) + '</option><option value="2" ' + (f.paid === '2' ? 'selected' : '') + '>' + h(App.first2()) + '</option></select>' +
-        '<button class="icon-btn" id="sp-tools" aria-label="CSV import and export" style="width:36px;height:36px">' + icon('more', 18) + '</button>' +
+        '<div class="seg full only-desk" id="scope" style="flex:1 1 100%">' + [['month', 'Month'], ['year', 'Year'], ['all', 'All']].map((s) => '<button data-s="' + s[0] + '" class="' + (f.scope === s[0] ? 'on' : '') + '">' + s[1] + '</button>').join('') + '</div>' +
+        '<select class="input sm only-desk" id="fcat" style="width:auto;flex:1 1 150px"><option value="">All categories</option>' + usedCats.map((c) => '<option value="' + h(c.id) + '" ' + (f.cat === c.id ? 'selected' : '') + '>' + h(c.name) + '</option>').join('') + '</select>' +
+        '<select class="input sm only-desk" id="fpaid" style="width:auto;flex:1 1 110px"><option value="">Anyone</option><option value="1" ' + (f.paid === '1' ? 'selected' : '') + '>' + h(App.first1()) + '</option><option value="2" ' + (f.paid === '2' ? 'selected' : '') + '>' + h(App.first2()) + '</option></select>' +
+        '<button class="icon-btn only-desk" id="sp-tools" aria-label="CSV import and export" style="width:36px;height:36px">' + icon('more', 18) + '</button>' +
+        // Phone: compact pull-down menus instead of three rows of controls.
+        '<div class="pd-row only-mob" style="margin:0;width:100%">' +
+          '<button class="pd-btn glass press" id="pd-scope">' + icon('calendar', 16) + '<span>' + ({ month: 'Month', year: 'Year', all: 'All time' })[f.scope] + '</span>' + icon('down', 15) + '</button>' +
+          '<button class="pd-btn plain press' + (f.cat ? ' set' : '') + '" id="pd-cat"><span>' + h(f.cat ? (App.cat(f.cat) || { name: 'Category' }).name : 'Category') + '</span>' + icon('down', 15) + '</button>' +
+          '<button class="pd-btn plain press' + (f.paid ? ' set' : '') + '" id="pd-paid"><span>' + h(f.paid === '1' ? App.first1() : f.paid === '2' ? App.first2() : 'Who') + '</span>' + icon('down', 15) + '</button>' +
+          '<button class="pd-btn plain press icon-only" id="sp-tools2" aria-label="More">' + icon('more', 18) + '</button></div>' +
         '</div>';
 
       const stats = '<div class="stats" style="margin-bottom:14px">' +
@@ -309,6 +316,13 @@
       const more = view.querySelector('#more'); if (more) more.onclick = () => { f.limit += 200; App.renderView(); };
       const a3 = view.querySelector('[data-add3]'); if (a3) a3.onclick = () => App.spendSheet();
       view.querySelector('#sp-tools').onclick = () => App.csvMenu();
+      view.querySelector('#sp-tools2').onclick = () => App.csvMenu();
+      const pdScope = view.querySelector('#pd-scope');
+      pdScope.onclick = () => App.pullDown(pdScope, [['month', 'This month', 'calendar'], ['year', 'This year', 'chart'], ['all', 'All time', 'layers']], f.scope, (v) => { f.scope = v; f.limit = 120; App.renderView(); });
+      const pdCat = view.querySelector('#pd-cat');
+      pdCat.onclick = () => App.pullDown(pdCat, [['', 'All categories', 'tag'], null].concat(usedCatsList().map((c) => [c.id, c.name, c.icon])), f.cat || '', (v) => { f.cat = v; App.renderView(); }, true);
+      const pdPaid = view.querySelector('#pd-paid');
+      pdPaid.onclick = () => App.pullDown(pdPaid, [['', 'Anyone', 'users'], ['1', App.first1(), 'user'], ['2', App.first2(), 'user']], f.paid || '', (v) => { f.paid = v; App.renderView(); });
       const byCat = {}; filteredSpends().forEach((s) => { byCat[s.catId] = (byCat[s.catId] || 0) + Calc.num(s.amount); });
       const items = Object.entries(byCat).map(([id, v]) => ({ name: (App.cat(id) || { name: 'Unknown' }).name, v })).sort((a, b) => b.v - a.v);
       if (items.length) drawDonut('ch-sp-donut', items);

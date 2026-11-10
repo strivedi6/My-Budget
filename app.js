@@ -164,7 +164,7 @@
         back.classList.remove('in'); el.classList.remove('in');
         setTimeout(() => { back.remove(); el.remove(); }, 300);
         App._sheets = App._sheets.filter((s) => s !== api);
-        if (!fromPop && history.state && history.state.sheet) history.back();
+        if (!fromPop && history.state && history.state.sheet) { App._ignorePop = true; history.back(); }
         if (opt.onClose) opt.onClose();
       }
     };
@@ -186,6 +186,7 @@
   };
   App._sheets = [];
   window.addEventListener('popstate', () => {
+    if (App._ignorePop) { App._ignorePop = false; return; }   // our own history.back() from closing a sheet
     const top = App._sheets[App._sheets.length - 1];
     if (top) { top.close(true); return; }
     App.readRoute();
@@ -298,12 +299,13 @@
 
   /* iOS-style pull-down menu: a glass list that springs open from its button.
    * items: [[value, label, iconName]], or null for a separator. onPick(value) runs after it closes. */
-  App.pullDown = (anchor, items, value, onPick) => {
+  App.pullDown = (anchor, items, value, onPick, catIcons) => {
     const r = anchor.getBoundingClientRect();
     const back = document.createElement('div'); back.className = 'pd-back';
     const menu = document.createElement('div'); menu.className = 'pd-menu'; menu.setAttribute('role', 'menu');
-    menu.innerHTML = items.map((it) => it ? '<button role="menuitemradio" aria-checked="' + (it[0] === value) + '" data-v="' + h(it[0]) + '"><span class="ck">' + (it[0] === value ? icon('check', 17) : '') + '</span><span class="lb">' + h(it[1]) + '</span>' + (it[2] ? icon(it[2], 19) : '') + '</button>' : '<hr>').join('');
+    menu.innerHTML = items.map((it) => it ? '<button role="menuitemradio" aria-checked="' + (it[0] === value) + '" data-v="' + h(it[0]) + '"><span class="ck">' + (it[0] === value ? icon('check', 17) : '') + '</span><span class="lb">' + h(it[1]) + '</span>' + (it[2] ? (catIcons && window.CAT_ICONS[it[2]] && it[0] ? catIcon(it[2], 19) : icon(it[2], 19)) : '') + '</button>' : '<hr>').join('');
     document.body.appendChild(back); document.body.appendChild(menu);
+    menu.style.maxHeight = Math.max(220, Math.min(innerHeight * 0.62, Math.max(innerHeight - r.bottom - 20, r.top - 20))) + 'px';
     const w = menu.offsetWidth, hgt = menu.offsetHeight, alignRight = r.left + w > innerWidth - 12;
     const left = alignRight ? Math.max(12, r.right - w) : Math.max(12, r.left);
     const below = r.bottom + 8 + hgt < innerHeight - 12;

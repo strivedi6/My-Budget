@@ -145,7 +145,7 @@
     const repeat = p.unit !== 'once';
     const seg = (id, opts, val) => '<div class="seg full" id="' + id + '">' + opts.map((o) => '<button type="button" data-v="' + o[0] + '" class="' + (String(val) === String(o[0]) ? 'on' : '') + '">' + h(o[1]) + '</button>').join('') + '</div>';
     const body =
-      '<div class="amount-in"><span class="cur">' + h(App.cur) + '</span><input id="pp-amt" inputmode="decimal" placeholder="0" value="' + h(p.amount) + '"></div>' +
+      '<div class="amount-in"><span class="cur">' + h(App.cur) + '</span><input id="pp-amt" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="' + h(p.amount) + '" aria-label="Amount"></div>' +
       '<div class="money-grid" style="grid-template-columns:1fr;margin-bottom:14px">' +
         '<label class="field" style="margin:0"><span>Payment name</span><input class="input" id="pp-name" placeholder="e.g. Rent cheque, Car loan" value="' + h(p.name) + '"></label></div>' +
       '<div class="two"><label class="field"><span>Category</span><select class="input" id="pp-cat"><option value="">Choose…</option>' + cats.map((c) => '<option value="' + h(c.id) + '"' + (c.id === p.catId ? ' selected' : '') + '>' + h(c.name) + '</option>').join('') + '</select></label>' +
@@ -187,7 +187,11 @@
         $('#pp-start').onchange = () => { if (p.days.length === 1) { p.days = [Number($('#pp-start').value.slice(8))]; el.querySelectorAll('#pp-days button').forEach((b) => b.classList.toggle('on', p.days.includes(Number(b.dataset.d)))); } sum(); };
         $('#pp-cat').onchange = () => { if (!$('#pp-name').value.trim()) { const c = App.cat($('#pp-cat').value); if (c) $('#pp-name').placeholder = c.name; } };
         sum();
-        if (isNew) setTimeout(() => $('#pp-amt').focus(), 350);
+        // The amount box grows with the number, like the spend sheet.
+        const amt = $('#pp-amt');
+        const fit = () => { amt.style.width = Math.max(1, (amt.value || '0').length) + 0.6 + 'ch'; };
+        amt.addEventListener('input', () => { amt.value = amt.value.replace(/[^0-9.,]/g, '').replace(',', '.'); fit(); }); fit();
+        if (isNew) setTimeout(() => amt.focus(), 350);
         $('[data-save]').onclick = () => {
           const amount = parseFloat(String($('#pp-amt').value).replace(/,/g, '')), err = $('#pp-err');
           p.catId = $('#pp-cat').value; p.start = $('#pp-start').value;
