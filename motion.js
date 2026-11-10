@@ -251,11 +251,11 @@
   })();
 
   /* ---------- Pull down to refresh (elastic) ---------- */
-  // Aurora: northern lights in the accent colour, behind the status bar and the top bar.
-  // Pulling down stretches it into view; it sways while the refresh runs, then fades away.
+  // A soft glow in the accent shades behind the status bar and top bar, rippling like water.
+  // It appears as you pull; the page springs back on release while the glow ripples until the refresh is done.
   const aur = document.createElement('div');
   aur.id = 'aurora'; aur.setAttribute('aria-hidden', 'true');
-  aur.innerHTML = '<div class="sky"></div><div class="lights">' + '<i></i>'.repeat(6) + '<b></b><b></b></div><span class="stars"></span><span class="stars s2"></span>';
+  aur.innerHTML = '<div class="glow">' + '<i></i>'.repeat(5) + '</div>';
   document.body.appendChild(aur);
   const navH = () => { const n = document.querySelector('.navbar'); return n ? n.getBoundingClientRect().height : 100; };
   const MAX = 150, TRIGGER = 66, HOLD = 58;
@@ -269,7 +269,7 @@
     const p = Math.min(1, d / TRIGGER);
     aur.style.transition = withTransition ? 'height .6s ' + SPRING + ', opacity .5s ease' : 'none';
     aur.style.height = (navH() + Math.min(d * 0.35, 26)) + 'px';   // stays in the top strip
-    if (!busy) aur.style.opacity = d > 2 ? (0.85 * Math.min(1, p)).toFixed(3) : '0';
+    if (!busy) aur.style.opacity = d > 2 ? Math.min(1, p).toFixed(3) : '0';
     aur.classList.toggle('live', d > 2 || busy);
     aur.classList.toggle('ready', p >= 1 && !busy);
     // Large title stretches a little, like iOS.
@@ -300,11 +300,12 @@
     if (dist >= TRIGGER) {
       busy = true;
       App.haptic();
-      setPull(HOLD, true);
       aur.classList.add('busy');
+      aur.style.opacity = '1';
+      setPull(0, true);   // the page springs straight back; the glow keeps rippling up top while it refreshes
       const t0 = Date.now();
       try { await Store.refresh(); } catch (err) {}
-      await new Promise((r) => setTimeout(r, Math.max(0, 1400 - (Date.now() - t0))));   // let the lights play a moment
+      await new Promise((r) => setTimeout(r, Math.max(0, 1600 - (Date.now() - t0))));   // let the ripple play a moment
       busy = false;
       aur.classList.remove('busy');
       setPull(0, true);
