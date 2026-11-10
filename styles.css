@@ -475,3 +475,68 @@ html.is-locked { background: var(--bg); }
 .ripple:nth-child(2) { animation-delay: 1.2s; } .ripple:nth-child(3) { animation-delay: 2.4s; }
 @keyframes ripple { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.8); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .lock-bg i, .ripple { animation: none !important; } .ripple { display: none; } }
+
+/* ======================================================================
+   Desktop and wide screens (Mac, PC, iPad landscape)
+   A Mac-style sidebar replaces the floating tab bar, cards sit side by
+   side on a 12-column grid, and sheets open as centred windows.
+   ====================================================================== */
+.sidebar { display: none; }
+@media (min-width: 1024px) {
+  :root { --side: 268px; --safe-t: 0px; --safe-b: 0px; --top-gap: 0px; }
+  .tabdock, #aurora { display: none; }
+
+  .sidebar { display: flex; flex-direction: column; gap: 6px; position: fixed; z-index: 30; top: 12px; bottom: 12px; left: 12px; width: calc(var(--side) - 24px);
+    padding: 16px 12px 12px; border-radius: 26px; overflow-y: auto; }
+  .sb-me { display: flex; align-items: center; gap: 12px; padding: 8px 8px 14px; margin-bottom: 6px; color: var(--text); text-decoration: none; border-bottom: .5px solid var(--sep); }
+  .sb-av { width: 42px; height: 42px; flex-shrink: 0; font-size: 17px; display: block; }
+  .sb-who { min-width: 0; display: flex; flex-direction: column; }
+  .sb-who b { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-who small { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-nav { display: flex; flex-direction: column; gap: 2px; }
+  .sb-nav a { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 12px; color: var(--text); text-decoration: none; font-size: 15px; font-weight: 500; letter-spacing: -0.2px; transition: background .15s; }
+  .sb-nav a .ic { width: 20px; height: 20px; color: var(--accent); }
+  .sb-nav a:hover { background: var(--fill-4); }
+  .sb-nav a.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .sb-add { margin-top: 10px; justify-content: center; gap: 8px; height: 40px; border-radius: 12px; }
+  .sb-sync { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; font-size: 12px; color: var(--text-2); text-decoration: none; }
+  .sb-sync:hover { background: var(--fill-4); }
+  .sb-sync .ic { width: 16px; height: 16px; flex-shrink: 0; }
+  .sb-sync[data-s="saving"] .ic { color: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+  .sb-sync[data-s="offline"] .ic, .sb-sync[data-s="error"] .ic, .sb-sync[data-s="auth"] .ic { color: var(--warn); }
+
+  .shell { max-width: none; margin: 0 0 0 var(--side); padding: 0 28px 0 24px; }
+  .navbar { height: 64px; padding: 14px 4px 6px; }
+  .navbar [data-go-settings] { display: none; }
+  .content { max-width: 1240px; padding: 0 4px 56px; }
+  .content[data-route="settings"], .content[data-route="settings-sub"] { max-width: 900px; }
+  .large-title { padding: 0 4px 20px; }
+  .large-title h1 { font-size: 34px; }
+
+  .grid { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 22px; }
+  .grid > * { grid-column: span 12; }
+  .grid > .c4 { grid-column: span 4; } .grid > .c5 { grid-column: span 5; } .grid > .c6 { grid-column: span 6; }
+  .grid > .c7 { grid-column: span 7; } .grid > .c8 { grid-column: span 8; } .grid > .c12 { grid-column: span 12; }
+  .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* Pointer niceties */
+  .menu .li:hover, [data-spend]:hover, .cat-opt:hover { background: var(--fill-4); }
+  .btn, .chip, .seg button, .tab, .circle, [data-spend], .menu .li { cursor: pointer; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--fill); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+
+  /* Sheets become centred windows */
+  .sheet { left: 50%; right: auto; top: 50%; bottom: auto; width: min(620px, calc(100vw - 48px)); max-width: none; margin: 0; padding-bottom: 0; max-height: min(86vh, 860px);
+    border-radius: 28px; opacity: 0; transform: translate(calc(-50% + var(--side) / 2), -46%) scale(.96);
+    transition: transform .42s var(--spring), opacity .22s ease; box-shadow: 0 30px 80px rgba(0, 0, 0, .28), 0 0 0 .5px var(--sep); }
+  .sheet.in { opacity: 1; transform: translate(calc(-50% + var(--side) / 2), -50%) scale(1); }
+  .sheet .grab { display: none; }
+  .sheet .sh-b { padding: 14px 22px 22px; }
+  .sheet .sh-f { padding: 4px 22px 22px; }
+
+  /* Sign-in: centred on a big screen rather than stretched to the window height */
+  .lock-card { height: auto; margin: auto; padding: 40px 0; }
+  .lock-card .keypad { margin-top: 28px; }
+  #toast { left: calc(50% + var(--side) / 2); }
+}
+@media (min-width: 1440px) { :root { --side: 288px; } }

@@ -239,9 +239,24 @@
         '<main class="content" id="view"></main>' +
       '</div>' +
       '<div class="tabdock"><nav class="tabbar glass" id="tabbar"></nav>' +
-        '<button class="fab glass press" data-add aria-label="Add spend">' + icon('plus', 28) + '</button></div>';
-    app.querySelector('[data-add]').onclick = () => App.spendSheet();
+        '<button class="fab glass press" data-add aria-label="Add spend">' + icon('plus', 28) + '</button></div>' +
+      // Wide screens (desktop/iPad): a Mac-style sidebar replaces the tab bar.
+      '<aside class="sidebar glass" id="sidebar" aria-label="Navigation"></aside>';
+    app.querySelectorAll('[data-add]').forEach((b) => (b.onclick = () => App.spendSheet()));
     App.renderNav();
+  };
+
+  // Sidebar for wide screens (hidden on phones by CSS).
+  App.renderSidebar = () => {
+    const r = App.ui.route;
+    const sb = document.getElementById('sidebar');
+    if (sb) {
+      sb.innerHTML = '<a class="sb-me" href="#/settings/profile"><span class="sb-av">' + App.avatarHtml() + '</span><span class="sb-who"><b>' + h(App.myName()) + '</b><small>with ' + h(App.otherName()) + '</small></span></a>' +
+        '<nav class="sb-nav">' + TABS.map((t) => '<a href="#/' + t[0] + '" class="' + (r === t[0] ? 'on' : '') + '">' + icon(t[2], 20) + '<span>' + t[1] + '</span></a>').join('') + '</nav>' +
+        '<button class="btn sb-add" data-sb-add>' + icon('plus', 18) + 'Add spend</button>' +
+        '<a class="sb-sync" id="sb-sync" href="#/settings/sync"></a>';
+      sb.querySelector('[data-sb-add]').onclick = () => App.spendSheet();
+    }
   };
 
   App.renderNav = () => {
@@ -250,6 +265,7 @@
     const i = Math.max(0, TABS.findIndex((t) => t[0] === r));
     tb.innerHTML = '<span class="tab-pill" style="width:calc((100% - 8px) / ' + TABS.length + ');transform:translateX(' + (i * 100) + '%)"></span>' +
       TABS.map((t) => '<a href="#/' + t[0] + '" class="tab ' + (r === t[0] ? 'on' : '') + '">' + icon(t[2], 25) + t[1] + '</a>').join('');
+    App.renderSidebar();
     App.renderSync();
   };
 
@@ -275,6 +291,8 @@
       dot.innerHTML = icon(i.icon, 21) + (Store.outbox.length && Store.status !== 'saving' ? '<span class="badge-n">' + Store.outbox.length + '</span>' : '');
       dot.title = i.text;
     }
+    const sbs = document.getElementById('sb-sync');
+    if (sbs) { sbs.setAttribute('data-s', Store.status); sbs.innerHTML = icon(i.icon, 16) + '<span>' + h(i.text) + '</span>'; }
   };
 
   App.monthSwitcher = () => {
@@ -320,6 +338,7 @@
         '<button class="circle glass press" data-go-settings aria-label="Settings">' + App.avatarHtml() + '</button>') + '</div>' +
       '<div class="nb-title">' + h(title) + '</div>' +
       '<div class="nb-r"><button class="circle glass press" id="top-sync" data-go-sync aria-label="Sync status"></button></div>';
+    document.getElementById('view').dataset.route = App.ui.route + (App.ui.sub ? '-sub' : '');
     const gs = nav.querySelector('[data-go-settings]'); if (gs) gs.onclick = () => App.go('settings');
     nav.querySelector('[data-go-sync]').onclick = () => App.go('settings', 'sync');
     App.renderSync();

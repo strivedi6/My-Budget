@@ -26,6 +26,7 @@
       anim(ic, [{ transform: 'scale(1)' }, { transform: 'scale(1.12)', offset: 0.45 }, { transform: 'scale(1)' }], { duration: 520, easing: SETTLE });
     }
     App._pillIdx = i;
+    if (App.renderSidebar) App.renderSidebar();
     App.renderSync();
   };
 
