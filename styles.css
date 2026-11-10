@@ -315,7 +315,7 @@ input[type="date"].input::-webkit-date-and-time-value, input[type="month"].input
 .pin-load .ld { font-size: 17px; }
 .pin-dots i { will-change: translate, scale; }
 .lock.waiting .pin-dots i { opacity: .6; background: var(--text); }
-.lock.leaving { pointer-events: none; will-change: transform, opacity; }
+.lock.leaving { pointer-events: none; will-change: mask-image; }
 .lock.leaving .lock-bg i, .lock.leaving .ripple { animation-play-state: paused; }
 /* Soft glow that the merged dots become; it swells to the screen edges and fades as the app appears */
 .reveal-orb { position: fixed; z-index: 102; border-radius: 50%; pointer-events: none; will-change: transform, opacity;

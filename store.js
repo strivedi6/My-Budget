@@ -1,8 +1,9 @@
 /* My Budget: data store.
- * The Google Sheet is the real copy of everything. This device keeps:
+ * The database (a Google Sheet behind the scenes) is the real copy of everything. This device keeps:
  *   - a copy of the data (so the app opens instantly and works offline)
- *   - a queue of changes not yet saved to the Sheet (sent automatically, retried until they land)
- * If the browser storage is cleared, sign in again and everything reloads from the Sheet.
+ *   - a queue of changes not yet saved to the database (sent automatically, retried until they land)
+ * If the browser storage is cleared, sign in again and everything reloads from the database.
+ * Two people can use it, each with their own code; the code used to sign in decides who this device is (mb_user).
  */
 (function () {
   'use strict';
@@ -99,6 +100,7 @@
     outbox: LS.get('mb_outbox', []),
     token: LS.get('mb_token', ''),
     pinHash: LS.get('mb_pinhash', ''),
+    user: Number(LS.get('mb_user', 1)) === 2 ? 2 : 1,   // who signed in on this device: 1 or 2
     lastSync: LS.get('mb_last_sync', ''),
     hasData: !!LS.get('mb_state', null),
     status: 'idle', // idle | saving | offline | error | auth
@@ -116,8 +118,8 @@
     persist() {
       this.reindex();
       if (!LS.set('mb_state', this.state)) {
-        // Storage full (usually a large photo): keep working, the Sheet still has everything.
-        const slim = Object.assign({}, this.state, { settings: Object.assign({}, this.state.settings, { avatar: '' }) });
+        // Storage full (usually a large photo): keep working, the database still has everything.
+        const slim = Object.assign({}, this.state, { settings: Object.assign({}, this.state.settings, { avatar: '', avatar2: '' }) });
         LS.set('mb_state', slim);
       }
       LS.set('mb_outbox', this.outbox);
@@ -184,6 +186,7 @@
     async login(pin) {
       const json = await this.api('login', { pin, device: deviceName() });
       this.token = json.token; LS.set('mb_token', this.token);
+      this.setUser(json.user);
       this.pinHash = await hashPin(pin); LS.set('mb_pinhash', this.pinHash);
       this.receive(json.data);
       return json;
@@ -204,6 +207,7 @@
       if (this.outbox.length) return; // still offline; keep local
       try {
         const json = await this.api('load');
+        if (json.user) this.setUser(json.user);
         this.receive(json.data);
         this.setStatus('idle');
       } catch (e) {
@@ -252,10 +256,13 @@
       this.pinHash = await hashPin(newPin); LS.set('mb_pinhash', this.pinHash);
     },
 
+    setUser(u) { this.user = Number(u) === 2 ? 2 : 1; LS.set('mb_user', this.user); },
+
     signOut() {
       const t = this.token;
       if (t && this.configured()) this.api('logout', {}).catch(() => {});
-      ['mb_state', 'mb_outbox', 'mb_token', 'mb_pinhash', 'mb_last_sync'].forEach((k) => LS.del(k));
+      ['mb_state', 'mb_outbox', 'mb_token', 'mb_pinhash', 'mb_last_sync', 'mb_user'].forEach((k) => LS.del(k));
+      this.user = 1;
       this.token = ''; this.pinHash = ''; this.outbox = []; this.state = emptyState(); this.hasData = false;
     },
 

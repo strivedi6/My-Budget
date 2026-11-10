@@ -2,7 +2,7 @@
   "id": "./",
   "name": "My Budget",
   "short_name": "Budget",
-  "description": "Household budget: daily spends, income, savings and forecasts, saved to Google Sheets.",
+  "description": "Household budget: daily spends, income, savings and forecasts, saved to your database.",
   "lang": "en",
   "dir": "ltr",
   "start_url": "./",

@@ -27,7 +27,7 @@
       const s = App.S(), sync = App.syncInfo();
       const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
       return '<div class="settings-grid"><div>' +
-        '<a class="menu profile-card" href="#/settings/profile" style="text-decoration:none;color:inherit;display:flex"><div class="av">' + App.avatarHtml() + '</div><div style="flex:1;min-width:0"><div style="font-weight:780;font-size:17px">' + h(App.name1()) + '</div><div class="muted" style="font-size:13px">with ' + h(App.name2()) + ' · ' + h(App.cur) + ' ' + fmt(Calc.num(s.sal1) + Calc.num(s.sal2)) + '/month</div></div>' + icon('right', 18) + '</a>' +
+        '<a class="menu profile-card" href="#/settings/profile" style="text-decoration:none;color:inherit;display:flex"><div class="av">' + App.avatarHtml() + '</div><div style="flex:1;min-width:0"><div style="font-weight:780;font-size:17px">' + h(App.myName()) + '</div><div class="muted" style="font-size:13px">with ' + h(App.otherName()) + ' · ' + h(App.cur) + ' ' + fmt(Calc.num(s.sal1) + Calc.num(s.sal2)) + '/month</div></div>' + icon('right', 18) + '</a>' +
         '<div class="section-title">Money</div><div class="menu">' +
           li('#/settings/month', 'calendar', 'Month setup', h(Calc.monthShort(App.ui.month))) +
           li('#/settings/categories', 'tag', 'Categories', Store.state.categories.length) +
@@ -39,7 +39,7 @@
           li('#/settings/install', 'phone', 'Install on this device', standalone ? 'Installed' : '') +
         '</div></div><div>' +
         '<div class="section-title">Your data</div><div class="menu">' +
-          li('#/settings/sync', Store.status === 'offline' || Store.status === 'error' ? 'cloudOff' : 'cloud', 'Sync & Google Sheet', h(sync.text)) +
+          li('#/settings/sync', Store.status === 'offline' || Store.status === 'error' ? 'cloudOff' : 'cloud', 'Sync & database', h(sync.text)) +
           li('#/settings/data', 'layers', 'Backup, import & reset', '') +
         '</div>' +
         '<div class="section-title">About</div><div class="menu"><div class="li">' + tile('info') + '<span class="main-t"><div class="t1">' + h(CFG.appName || 'My Budget') + '</div><div class="t2">Version ' + h(CFG.appVersion || '') + ' · ' + Store.state.spends.length + ' spends saved</div></span></div>' +
@@ -56,10 +56,14 @@
   PAGES.profile = {
     render() {
       const s = App.S();
+      // Whoever is signed in on this device sees their own name, photo and salary first.
+      const [me, other] = App.me() === 2 ? ['2', '1'] : ['1', '2'];
+      const nm = (k, label) => '<label class="field"><span>' + label + '</span><input class="input" id="n' + k + '" value="' + h(s['name' + k]) + '"></label>';
+      const sl = (k, label) => '<label class="field"><span>' + label + '</span><input class="input" id="s' + k + '" inputmode="decimal" value="' + h(s['sal' + k]) + '"></label>';
       return back() + '<div class="grid"><section class="card c6">' +
-        '<div class="row" style="gap:16px;margin-bottom:18px"><div style="width:72px;height:72px;font-size:28px">' + App.avatarHtml() + '</div><div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn sm" id="av-up">' + icon('upload', 16) + 'Change photo</button>' + (s.avatar ? '<button class="btn sm ghost" id="av-rm">Remove</button>' : '') + '</div></div>' +
-        '<div class="two"><label class="field"><span>Your name</span><input class="input" id="n1" value="' + h(s.name1) + '"></label><label class="field"><span>Partner\'s name</span><input class="input" id="n2" value="' + h(s.name2) + '"></label></div>' +
-        '<div class="two"><label class="field"><span>Your monthly salary</span><input class="input" id="s1" inputmode="decimal" value="' + h(s.sal1) + '"></label><label class="field"><span>Partner\'s monthly salary</span><input class="input" id="s2" inputmode="decimal" value="' + h(s.sal2) + '"></label></div>' +
+        '<div class="row" style="gap:16px;margin-bottom:18px"><div style="width:72px;height:72px;font-size:28px">' + App.avatarHtml() + '</div><div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn sm" id="av-up">' + icon('upload', 16) + 'Change photo</button>' + (s[App.avatarKey()] ? '<button class="btn sm ghost" id="av-rm">Remove</button>' : '') + '</div></div>' +
+        '<div class="two">' + nm(me, 'Your name') + nm(other, 'Partner\'s name') + '</div>' +
+        '<div class="two">' + sl(me, 'Your monthly salary') + sl(other, 'Partner\'s monthly salary') + '</div>' +
         '<p class="muted" style="font-size:13px;margin:-4px 0 16px">Default salaries set the income share for splitting shared costs and fill every month you have not set yourself. A month with a different salary goes in Month setup.</p>' +
         '<button class="btn primary block" id="save">Save</button></section></div>';
     },
@@ -72,10 +76,10 @@
       };
       v.querySelector('#av-up').onclick = async () => {
         const f = await App.pickFile('image/*'); if (!f) return;
-        try { const url = await resizeImage(f, 320); Store.commit({ op: 'put', t: 'settings', row: { key: 'avatar', value: url } }); App.toast('Photo updated'); }
+        try { const url = await resizeImage(f, 320); Store.commit({ op: 'put', t: 'settings', row: { key: App.avatarKey(), value: url } }); App.toast('Photo updated'); }
         catch (e) { App.toast('Could not read that image'); }
       };
-      const rm = v.querySelector('#av-rm'); if (rm) rm.onclick = () => Store.commit({ op: 'put', t: 'settings', row: { key: 'avatar', value: '' } });
+      const rm = v.querySelector('#av-rm'); if (rm) rm.onclick = () => Store.commit({ op: 'put', t: 'settings', row: { key: App.avatarKey(), value: '' } });
     }
   };
   function resizeImage(file, size) {
@@ -254,7 +258,7 @@
       v.querySelector('#al').onchange = (e) => { App.prefs.autolock = Number(e.target.value); App.savePrefs(); App.toast('Saved'); };
       v.querySelector('#lk').onclick = () => App.lock();
       v.querySelector('#so').onclick = async () => {
-        if (await App.confirm({ title: 'Sign out of this device?', message: (Store.outbox.length ? Store.outbox.length + ' changes have not reached the Sheet yet and will be lost. ' : '') + 'This removes your data from this device only. It stays safe in the Google Sheet.', ok: 'Sign out', danger: true })) { Store.signOut(); App.lockScreen('signin'); }
+        if (await App.confirm({ title: 'Sign out of this device?', message: (Store.outbox.length ? Store.outbox.length + ' changes have not reached the database yet and will be lost. ' : '') + 'This removes your data from this device only. It stays safe in the database.', ok: 'Sign out', danger: true })) { Store.signOut(); App.lockScreen('signin'); }
       };
       v.querySelector('#chg').onclick = () => App.sheet({
         title: 'Change your code',
@@ -283,7 +287,7 @@
         App.installPrompt ? '<p class="sub">Add My Budget to this device so it opens like an app, full screen, with its own icon.</p><button class="btn primary block" id="inst">' + icon('download', 18) + 'Install app</button>' :
         ios ? '<ol class="sub" style="padding-left:20px;line-height:1.9;margin:0"><li>Open this page in <b>Safari</b>.</li><li>Tap the <b>Share</b> button (square with arrow).</li><li>Scroll and tap <b>Add to Home Screen</b>.</li><li>Tap <b>Add</b>. Open My Budget from the new icon.</li></ol>' :
         '<ol class="sub" style="padding-left:20px;line-height:1.9;margin:0"><li>Open the browser menu (⋮ in Chrome, or the install icon in the address bar on a computer).</li><li>Choose <b>Install app</b> or <b>Add to Home screen</b>.</li><li>Open My Budget from the new icon.</li></ol>') +
-        '<p class="muted" style="font-size:13px;margin:16px 0 0">Your data lives in your Google Sheet, so the installed app, this browser and your computer all show the same numbers.</p></section></div>';
+        '<p class="muted" style="font-size:13px;margin:16px 0 0">Your data lives in your database, so the installed app, this browser and your computer all show the same numbers.</p></section></div>';
     },
     mount(v) { const b = v.querySelector('#inst'); if (b) b.onclick = async () => { App.installPrompt.prompt(); await App.installPrompt.userChoice; App.installPrompt = null; App.renderView(); }; }
   };
@@ -294,13 +298,13 @@
       const i = App.syncInfo();
       return back() + '<div class="grid"><section class="card c6"><div class="row" style="gap:14px;margin-bottom:16px"><span class="cat-ic" style="--c:var(--teal);width:52px;height:52px;border-radius:14px">' + icon(i.icon, 28) + '</span><div><div style="font-weight:780;font-size:17px">' + h(i.text) + '</div><div class="muted" style="font-size:13px">' + (Store.lastSync ? 'Last saved ' + new Date(Store.lastSync).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '') + '</div></div></div>' +
         (Store.lastError && Store.status !== 'idle' ? '<div class="notice warn" style="margin-bottom:14px">' + h(Store.lastError) + '</div>' : '') +
-        '<div class="menu">' + btnLi('id="sn"', 'refresh', 'Sync now', Store.outbox.length ? Store.outbox.length + ' waiting' : '') + btnLi('id="rl"', 'download', 'Reload everything from the Sheet', '') +
-        (CFG.sheetUrl ? '<a class="li" href="' + h(CFG.sheetUrl) + '" target="_blank" rel="noopener">' + tile('sheet') + '<span class="main-t"><div class="t1">Open the Google Sheet</div></span></a>' : '') + '</div>' +
-        '<p class="muted" style="font-size:13px;margin:16px 0 0">Every change is saved on this device first, then sent to your Google Sheet. Without internet, changes wait here and go through when you are back online. Clearing the browser cache never loses data: just sign in again.</p></section></div>';
+        '<div class="menu">' + btnLi('id="sn"', 'refresh', 'Sync now', Store.outbox.length ? Store.outbox.length + ' waiting' : '') + btnLi('id="rl"', 'download', 'Reload everything from the database', '') +
+        (CFG.sheetUrl ? '<a class="li" href="' + h(CFG.sheetUrl) + '" target="_blank" rel="noopener">' + tile('sheet') + '<span class="main-t"><div class="t1">Open the database</div></span></a>' : '') + '</div>' +
+        '<p class="muted" style="font-size:13px;margin:16px 0 0">Every change is saved on this device first, then sent to your database. Without internet, changes wait here and go through when you are back online. Clearing the browser cache never loses data: just sign in again.</p></section></div>';
     },
     mount(v) {
       v.querySelector('#sn').onclick = async () => { App.toast('Syncing…'); await Store.flush(); await Store.refresh(); App.renderView(); App.toast(Store.outbox.length ? 'Still offline; will retry' : 'All saved'); };
-      v.querySelector('#rl').onclick = async () => { App.toast('Loading…'); await Store.refresh(); App.renderView(); App.toast(Store.status === 'idle' ? 'Up to date with the Sheet' : Store.lastError || 'Could not reach the Sheet'); };
+      v.querySelector('#rl').onclick = async () => { App.toast('Loading…'); await Store.refresh(); App.renderView(); App.toast(Store.status === 'idle' ? 'Up to date with the database' : Store.lastError || 'Could not reach the database'); };
     }
   };
 
@@ -314,7 +318,7 @@
         '<div class="section-title">Spends as CSV</div><div class="menu">' + btnLi('id="cimp"', 'upload', 'Import spends from CSV', '') + btnLi('id="cexp"', 'download', 'Export all spends to CSV', '') + btnLi('id="ctpl"', 'file', 'Download CSV template', '') + '</div>' +
         '</div><div><div class="section-title">Reset</div><div class="menu">' +
           btnLi('id="rm"', 'calendar', 'Clear ' + Calc.monthLabel(App.ui.month), '', true) + btnLi('id="ry"', 'calendar', 'Clear all of ' + y, '', true) + btnLi('id="ra"', 'trash', 'Erase everything', '', true) +
-        '</div><p class="muted" style="font-size:12.5px;margin:8px 4px 0">Clearing removes the spends and month settings for that period from the Sheet too. Download a backup first if unsure.</p></div></div>';
+        '</div><p class="muted" style="font-size:12.5px;margin:8px 4px 0">Clearing removes the spends and month settings for that period from the database too. Download a backup first if unsure.</p></div></div>';
     },
     mount(v) {
       v.querySelector('#exp').onclick = exportBackup;
@@ -325,7 +329,7 @@
       v.querySelector('#rm').onclick = () => resetPeriod(App.ui.month, Calc.monthLabel(App.ui.month));
       v.querySelector('#ry').onclick = () => resetPeriod(App.ui.month.slice(0, 4), App.ui.month.slice(0, 4));
       v.querySelector('#ra').onclick = async () => {
-        if (!(await App.confirm({ title: 'Erase everything?', message: 'All spends, months, categories and settings are deleted from this app and the Google Sheet. Your sign-in code stays the same.', ok: 'Continue', danger: true }))) return;
+        if (!(await App.confirm({ title: 'Erase everything?', message: 'All spends, months, categories and settings are deleted from this app and the database. Your sign-in code stays the same.', ok: 'Continue', danger: true }))) return;
         if (!(await App.confirm({ title: 'Really erase everything?', message: 'This cannot be undone. Download a backup first if you might need it.', ok: 'Erase everything', danger: true }))) return;
         const fresh = Store.normalise(null); fresh.settings = { name1: App.name1(), name2: App.name2(), sal1: 0, sal2: 0 };
         Store.commit({ op: 'replace', data: fresh }); App.toast('Everything erased');
@@ -366,18 +370,18 @@
       body: '<div class="notice" style="margin-bottom:14px"><b>' + st.spends.length + ' spends</b>' + (dates.length ? ' from ' + App.dateLabel(dates[0], { day: 'numeric', month: 'short', year: 'numeric' }) + ' to ' + App.dateLabel(dates[dates.length - 1], { day: 'numeric', month: 'short', year: 'numeric' }) : '') +
         ', ' + st.categories.length + ' categories, ' + Object.keys(st.months).length + ' month settings. <b>' + fresh + '</b> spends are new to this app.</div>' +
         '<div class="menu">' + btnLi('data-m="merge"', 'layers', 'Merge (recommended)', 'add + update') + btnLi('data-m="replace"', 'refresh', 'Replace everything', '', true) + '</div>' +
-        '<p class="muted" style="font-size:12.5px;margin:10px 2px 0"><b>Merge</b> adds new spends and updates matching ones; nothing already here is deleted. <b>Replace</b> makes the app and Sheet exactly match the file.</p>',
+        '<p class="muted" style="font-size:12.5px;margin:10px 2px 0"><b>Merge</b> adds new spends and updates matching ones; nothing already here is deleted. <b>Replace</b> makes the app and database exactly match the file.</p>',
       onMount(el, api) {
         el.querySelector('[data-m="merge"]').onclick = () => {
           const ops = [];
-          Object.keys(st.settings).forEach((k) => { if (k === 'avatar' && !st.settings[k]) return; if (String(App.S()[k]) !== String(st.settings[k])) ops.push({ op: 'put', t: 'settings', row: { key: k, value: st.settings[k] } }); });
+          Object.keys(st.settings).forEach((k) => { if ((k === 'avatar' || k === 'avatar2') && !st.settings[k]) return; if (String(App.S()[k]) !== String(st.settings[k])) ops.push({ op: 'put', t: 'settings', row: { key: k, value: st.settings[k] } }); });
           if (data.categories && data.categories.length) st.categories.forEach((c) => ops.push({ op: 'put', t: 'categories', row: c }));
           Object.keys(st.months).forEach((k) => ops.push({ op: 'put', t: 'months', row: Object.assign({ month: k }, st.months[k]) }));
           st.spends.forEach((s) => { const cur = Store.state.spends.find((x) => x.id === s.id); if (!cur || JSON.stringify(cur) !== JSON.stringify(s)) ops.push({ op: 'put', t: 'spends', row: s }); });
           Store.commit(ops); api.close(); App.toast('Imported · ' + fresh + ' new spends');
         };
         el.querySelector('[data-m="replace"]').onclick = async () => {
-          if (!(await App.confirm({ title: 'Replace everything?', message: 'Everything in the app and the Google Sheet is replaced by this file.', ok: 'Replace', danger: true }))) return;
+          if (!(await App.confirm({ title: 'Replace everything?', message: 'Everything in the app and the database is replaced by this file.', ok: 'Replace', danger: true }))) return;
           Store.commit({ op: 'replace', data: st }); api.close(); App.toast('Replaced with the backup');
         };
       }

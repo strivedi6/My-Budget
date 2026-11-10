@@ -57,7 +57,7 @@
   /* ================= HOME ================= */
   App.screens.home = {
     title: 'Summary',
-    subtitle: () => 'Hi ' + App.first1() + ' · ' + Calc.monthLabel(App.ui.month),
+    subtitle: () => 'Hi ' + App.myFirst() + ' · ' + Calc.monthLabel(App.ui.month),
     render() {
       const key = App.ui.month, m = App.calc(key);
       const cur = key === Calc.currentMk(), past = key < Calc.currentMk();

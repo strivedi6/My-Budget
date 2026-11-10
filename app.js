@@ -39,7 +39,13 @@
   App.css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   App.uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   App.pct = (a, b) => (b > 0 ? a / b * 100 : 0);
-  App.initial = () => (App.name1()[0] || 'M').toUpperCase();
+  // The person signed in on this device (1 or 2) and the other person.
+  App.me = () => (Store.user === 2 ? 2 : 1);
+  App.myName = () => (App.me() === 2 ? App.name2() : App.name1());
+  App.myFirst = () => (App.me() === 2 ? App.first2() : App.first1());
+  App.otherName = () => (App.me() === 2 ? App.name1() : App.name2());
+  App.avatarKey = () => (App.me() === 2 ? 'avatar2' : 'avatar');
+  App.initial = () => (App.myName()[0] || 'M').toUpperCase();
   /* Loading animations (pull-to-refresh and sign-in). Pick one in Settings › Appearance.
      Each is plain markup animated by CSS in styles.css; adding .go starts it. All use the accent colour. */
   App.LOADERS = [['goo', 'Goo'], ['turn', 'Turning dots'], ['hop', 'Hopscotch'], ['halo', 'Halo'], ['ripple', 'Ripple'],
@@ -75,7 +81,7 @@
   };
 
   App.avatarHtml = () => {
-    const a = App.S().avatar;
+    const a = App.S()[App.avatarKey()];
     return a ? '<div class="avatar"><img src="' + h(a) + '" alt=""></div>' : '<div class="avatar">' + h(App.initial()) + '</div>';
   };
   App.savePrefs = () => LS.set('mb_prefs', App.prefs);
@@ -279,7 +285,7 @@
 
   App.syncInfo = () => {
     const n = Store.outbox.length, s = Store.status;
-    if (s === 'saving') return { icon: 'cloud', text: 'Saving to Google Sheet…' };
+    if (s === 'saving') return { icon: 'cloud', text: 'Saving to database…' };
     if (s === 'auth') return { icon: 'cloudOff', text: 'Sign in again to keep saving' };
     if (n && (s === 'offline' || s === 'error')) return { icon: 'cloudOff', text: n + ' change' + (n > 1 ? 's' : '') + ' waiting to save' };
     if (n) return { icon: 'cloud', text: n + ' change' + (n > 1 ? 's' : '') + ' waiting' };
@@ -362,7 +368,7 @@
     App.destroyCharts();
     App._sheets.slice().forEach((s) => s.close(true));
     const app = document.getElementById('app');
-    const name = Store.hasData ? App.first1() : '';
+    const name = Store.hasData ? App.myFirst() : '';
     const notConfigured = !Store.configured();
     const title = mode === 'unlock' ? (name ? 'Hi, ' + name : 'Welcome back') : 'Sign in';
     const sub = mode === 'unlock' ? 'Enter your 6-digit code' : 'Enter your 6-digit code to load your budget';
@@ -438,8 +444,8 @@
           if (all) { ds.forEach((d) => { d.style.translate = ''; d.style.scale = ''; }); return finish(); }
         } else if (mode === 'merge') {
           let all = true;
-          pos = ds.map((_, i) => { const k = (ta - i * 0.04) / 0.75; if (k < 1) all = false; const e = io(k); const p = mix(live(t, i), target, e); p.s = 1 + 1.7 * e; return p; });
-          if (hook && ta > 0.72) { const h = hook; hook = null; h(); }
+          pos = ds.map((_, i) => { const k = (ta - i * 0.015) / 0.8; if (k < 1) all = false; const e = io(k); const p = mix(live(t, i), target, e); p.s = 1 + 1.7 * e; return p; });
+          if (hook && ta > 0.55) { const h = hook; hook = null; h(); }
           if (all) { apply(pos); return finish(); }
         }
         apply(pos);
@@ -465,7 +471,7 @@
         merge(onGlow) {
           const r = dots.getBoundingClientRect();
           target = { x: innerWidth / 2 - (r.left + r.width / 2), y: innerHeight / 2 - (r.top + r.height / 2), s: 1 };
-          dots.style.transition = 'filter .6s ease'; dots.style.filter = 'blur(2.5px)';
+          dots.style.transition = 'filter .7s ease'; dots.style.filter = 'blur(4px)';
           if (still || !mode) { if (onGlow) onGlow(); return Promise.resolve(); }
           hook = onGlow;
           return new Promise((res) => { done = res; start('merge'); });
@@ -512,35 +518,42 @@
     };
     const problem = async (t) => { await ring.back(); pin = ''; draw(); lockEl.classList.remove('checking'); say(t, 'neg'); };
 
-    // Correct code: the app is drawn behind the sign-in screen first (so nothing stutters later), then the
-    // dots drift to the middle of the screen as they melt into one glow, and that glow gently swells and
-    // fades while the sign-in screen fades away. One continuous motion; only opacity and transform animate.
+    // Correct code: the app (Summary) is drawn behind the sign-in screen first, so nothing stutters later.
+    // The dots drift to the middle of the screen and melt into one soft dot; then, like PowerPoint's
+    // "Shape" transition, a soft-edged circle opens from that dot and grows until it reveals the whole app.
+    // Only a mask and a transform change each frame.
     const enter = async (fresh) => {
       setLO({});
       clearInterval(timer);
+      history.replaceState(null, '', '#/home');   // always open on Summary (no extra hashchange render)
       document.body.appendChild(lockEl);
       lockEl.classList.add('leaving');
       App.unlocked(fresh);
       window.scrollTo(0, 0);
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-      if (still || !lockEl.animate) { lockEl.remove(); return; }
-      const E = 'cubic-bezier(.4, 0, .2, 1)';
-      const glow = () => {
-        const size = 36, cx = innerWidth / 2, cy = innerHeight / 2;
-        const orb = document.createElement('div'); orb.className = 'reveal-orb';
-        orb.style.cssText = 'left:' + (cx - size / 2) + 'px;top:' + (cy - size / 2) + 'px;width:' + size + 'px;height:' + size + 'px';
-        document.body.appendChild(orb);
-        const big = (Math.hypot(cx, cy) * 2.2) / size;
-        orb.animate([{ transform: 'scale(1)', opacity: 0 }, { transform: 'scale(1.6)', opacity: 0.9, offset: 0.12 }, { transform: 'scale(' + (big * 0.4).toFixed(1) + ')', opacity: 0.45, offset: 0.55 }, { transform: 'scale(' + big.toFixed(1) + ')', opacity: 0 }],
-          { duration: 1100, easing: E, fill: 'forwards' }).onfinish = () => orb.remove();
-        lockEl.style.transformOrigin = '50% 50%';
-        lockEl.animate([{ transform: 'scale(1)', opacity: 1 }, { transform: 'scale(1.05)', opacity: 0 }], { duration: 800, delay: 120, easing: E, fill: 'forwards' })
-          .onfinish = () => lockEl.remove();
-      };
-      // Clear the stage first: only the dots stay, drifting to the middle of the screen.
+      if (still) { lockEl.remove(); return; }
       lockEl.querySelectorAll('.avatar-xl, h1, p, .pin-msg').forEach((el) => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 380, easing: 'ease-out', fill: 'forwards' }));
-      await ring.merge(glow);
-      dots.style.transition = 'opacity .25s'; dots.style.opacity = '0';
+      const cx = innerWidth / 2, cy = innerHeight / 2, far = Math.hypot(cx, cy) * 1.45, dur = 1500;
+      const view = document.getElementById('view');
+      const soft = (k) => 0.5 - 0.5 * Math.cos(Math.PI * k);   // gentle start, gentle finish
+      const reveal = () => new Promise((done) => {
+        if (view && view.animate) view.animate([{ transform: 'scale(1.06)' }, { transform: 'none' }], { duration: dur, easing: 'cubic-bezier(.33, 0, .25, 1)' });
+        dots.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 500, easing: 'ease-in', fill: 'forwards' });
+        const t0 = performance.now();
+        const step = (now) => {
+          const k = Math.min(1, (now - t0) / dur), r = 6 + far * soft(k);
+          // soft edge: clear in the middle, feathering out over the outer half of the radius
+          const m = 'radial-gradient(circle at ' + cx + 'px ' + cy + 'px, transparent ' + (r * 0.5).toFixed(1) + 'px, #000 ' + r.toFixed(1) + 'px)';
+          lockEl.style.webkitMaskImage = m; lockEl.style.maskImage = m;
+          if (k < 1) requestAnimationFrame(step); else done();
+        };
+        requestAnimationFrame(step);
+      });
+      // The circle starts opening while the dots are still melting together, so there is no pause.
+      let opening = null;
+      await ring.merge(() => { opening = reveal(); });
+      await (opening || reveal());
+      lockEl.remove();
     };
 
     const submit = async () => {
@@ -548,7 +561,7 @@
       busy = true;
       lockEl.classList.add('checking');   // keypad slides away, the code dots form a turning ring
       ring.gather();
-      say(mode === 'unlock' ? '' : 'Checking with your Google Sheet…');
+      say('Authenticating user…');
       const t0 = Date.now(), minShow = () => wait(Math.max(0, 1100 - (Date.now() - t0)));
       try {
         if (mode === 'unlock' && Store.pinHash) {
@@ -574,7 +587,7 @@
     app.querySelector('[data-fn="del"]').onclick = del;
     app.querySelector('[data-fn="help"]').onclick = async () => {
       if (mode !== 'unlock') return;
-      if (await App.confirm({ title: 'Sign out of this device?', message: Store.outbox.length ? 'There are ' + Store.outbox.length + ' changes not yet saved to the Sheet. Signing out now loses them.' : 'Your data stays in the Google Sheet. Sign in again with your code any time.', ok: 'Sign out', danger: true })) {
+      if (await App.confirm({ title: 'Sign out of this device?', message: Store.outbox.length ? 'There are ' + Store.outbox.length + ' changes not yet saved to the database. Signing out now loses them.' : 'Your data stays in the database. Sign in again with your code any time.', ok: 'Sign out', danger: true })) {
         Store.signOut(); App.lockScreen('signin');
       }
     };
@@ -590,7 +603,7 @@
     App.applyTheme();
     App.renderShell();
     App.readRoute();
-    if (fresh) App.toast('Loaded from your Google Sheet');
+    if (fresh) App.toast('Signed in as ' + App.myFirst());
     else Store.refresh();
   };
 
@@ -648,7 +661,7 @@
 
   App.spendSheet = (existing) => {
     const isEdit = !!existing;
-    const s = existing ? Object.assign({}, existing) : { id: App.uid(), date: Calc.todayIso(), catId: '', merchant: '', paidBy: 1, amount: '' };
+    const s = existing ? Object.assign({}, existing) : { id: App.uid(), date: Calc.todayIso(), catId: '', merchant: '', paidBy: App.me(), amount: '' };
     const merchants = App.merchantIndex();
     const usage = App.catUsage();
     const cats = Store.state.categories.slice().sort((a, b) => (usage[b.id] || 0) - (usage[a.id] || 0));

@@ -312,7 +312,7 @@
       ptr.classList.remove('done');
       busy = false;
       setPull(0, true);
-      App.toast(Store.status === 'idle' ? 'Up to date' : (Store.outbox.length ? 'Offline: changes will sync later' : (Store.lastError || 'Could not reach the Sheet')));
+      App.toast(Store.status === 'idle' ? 'Up to date' : (Store.outbox.length ? 'Offline: changes will sync later' : (Store.lastError || 'Could not reach the database')));
     } else {
       setPull(0, true);
     }

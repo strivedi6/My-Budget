@@ -1,6 +1,6 @@
 /* Service worker: keeps a copy of the app on the device so it opens instantly and works offline.
  * Raise VERSION whenever you upload a new version (match appVersion in config.js). */
-const VERSION = '1.8.0';
+const VERSION = '1.9.0';
 const CACHE = 'mybudget-' + VERSION;
 const SHELL = [
   './',
@@ -37,7 +37,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return; // the Google Sheet backend is never cached
+  if (url.origin !== self.location.origin) return; // the database backend is never cached
 
   // Open instantly from the saved copy, refresh it in the background.
   event.respondWith(
