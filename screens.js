@@ -364,7 +364,7 @@
         const T = Smart.tips(Store.state, Store.idx, p), name = p === 1 ? App.name1() : App.name2();
         return '<section class="card c6"><div class="card-h"><span class="dot" style="background:var(--p' + p + ');width:10px;height:10px"></span><h3>' + h(name) + '</h3>' +
           (T.potential >= 1 ? '<span class="pill pos">Save ~' + fmt(T.potential) + '/mo</span>' : '') + '</div>' +
-          (T.list.length ? '<div class="tips">' + T.list.map((t) => '<div class="tip ' + t.tone + '"><span class="ti">' + icon(t.icon, 18) + '</span><div class="tb"><b>' + h(t.title) + '</b><p>' + h(t.text) + '</p></div>' +
+          (T.list.length ? '<div class="tips">' + T.list.map((t) => '<div class="tip tone-' + t.tone + '"><span class="ti">' + icon(t.icon, 18) + '</span><div class="tb"><b>' + h(t.title) + '</b><p>' + h(t.text) + '</p></div>' +
             (t.save >= 1 && !t.goal && t.tone !== 'good' ? '<span class="sv num">+' + fmt(t.save) + '</span>' : '') + '</div>').join('') + '</div>'
             : '<div class="empty">Not enough spending yet to suggest anything. Keep logging and tips will appear here.</div>') + '</section>';
       };
