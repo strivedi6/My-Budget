@@ -287,10 +287,11 @@
   };
 
   /* ================= INSIGHTS ================= */
-  const ITABS = [['pnl', 'P&L'], ['savings', 'Savings'], ['forecast', 'Forecast'], ['compare', 'Compare']];
+  const ITABS = [['pnl', 'P&L'], ['savings', 'Savings'], ['forecast', 'Forecast'], ['compare', 'Compare'], ['plan', 'Plan'], ['tips', 'Tips']];
   App.screens.insights = {
     title: 'Insights',
-    subtitle: () => (App.ui.insights === 'pnl' || App.ui.insights === 'compare' ? Calc.monthLabel(App.ui.month) : 'Year ' + App.ui.month.slice(0, 4)),
+    month: () => !['plan', 'tips'].includes(App.ui.insights),
+    subtitle: () => (App.ui.insights === 'plan' || App.ui.insights === 'tips' ? 'Learned from your spending' : App.ui.insights === 'pnl' || App.ui.insights === 'compare' ? Calc.monthLabel(App.ui.month) : 'Year ' + App.ui.month.slice(0, 4)),
     render() {
       const t = App.ui.insights;
       const seg = '<div class="seg full" id="itabs" style="margin-bottom:18px">' + ITABS.map((x) => '<button data-i="' + x[0] + '" class="' + (t === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>';
@@ -308,7 +309,73 @@
     return { year, months, nowK, done };
   }
 
+  /* ---------- Plan: smart budgets learned from past months ---------- */
+  const GROUPS = [['fixed', 'Fixed bills'], ['musthave', 'Must-haves'], ['optional', 'Optional'], ['', 'Other']];
+  const planTab = {
+    render() {
+      const st = Store.state, cur = Calc.currentMk(), next = Calc.addMonths(cur, 1);
+      const L = Smart.learn(st, Store.idx, cur, false), N = Smart.learn(st, Store.idx, next, true);
+      if (!L.months.length) return '<section class="card"><div class="empty">Smart budgets need at least one finished month of spending to learn from.</div></section>';
+      const on = App.smartOn(), md = st.months[cur], manual = !Smart.isAuto(md);
+      const m = App.calc(cur), inc = m.totalInc, save = inc - L.total;
+      const nextBy = {}; N.rows.forEach((r) => { nextBy[r.cat.id] = r; });
+      const status = on ? (manual ? Calc.monthShort(cur) + ' budgets were edited by hand, so they are left as they are.' : 'On: ' + Calc.monthShort(cur) + ' follows these budgets and updates as you go. ' + Calc.monthShort(next) + ' is set when it starts.')
+        : 'Off: these are suggestions only. Turn on to follow them every month, or apply them once.';
+      const head = '<section class="card c12"><div class="card-h"><h3>Smart budget</h3><span class="pill">' + L.months.length + ' month' + (L.months.length > 1 ? 's' : '') + ' learned</span></div>' +
+        '<p class="muted" style="margin:0 0 14px;font-size:14px;line-height:1.45">Each category\'s budget is learned from what you actually spent: fixed bills at their latest amount, must-haves at your usual, optional spending 10% below usual so you save more.</p>' +
+        '<label class="toggle-row"><span><b>Follow smart budgets automatically</b><small>' + h(status) + '</small></span><input type="checkbox" id="smart-on" class="toggle" switch ' + (on ? 'checked' : '') + '></label>' +
+        '<div class="row" style="gap:10px;margin-top:14px;flex-wrap:wrap">' +
+          (!on || manual ? '<button class="btn sm tint" data-apply="' + cur + '">Apply to ' + h(Calc.monthShort(cur)) + '</button>' : '') +
+          '<button class="btn sm" data-apply="' + next + '" data-pace="1">Apply to ' + h(Calc.monthShort(next)) + ' now</button></div></section>';
+      const kpis = '<section class="card c12"><div class="kpis" style="margin:0"><div class="kpi"><div class="k">' + h(Calc.monShort(cur)) + ' budget</div><div class="v num">' + fmt(L.total) + '</div></div>' +
+        '<div class="kpi"><div class="k">Saves</div><div class="v num ' + (save >= 0 ? 'pos' : 'neg') + '">' + fmt(save) + '</div></div>' +
+        '<div class="kpi"><div class="k">' + h(Calc.monShort(next)) + ' preview</div><div class="v num">' + fmt(N.total) + '</div></div></div>' +
+        (N.usedPace ? '<p class="muted" style="margin:12px 2px 0;font-size:13px">' + h(Calc.monthShort(next)) + ' also counts this month\'s pace so far.</p>' : '') + '</section>';
+      const lists = GROUPS.map(([g, label]) => {
+        const rows = L.rows.filter((r) => (r.cat.group || '') === g || (g === '' && !['fixed', 'musthave', 'optional'].includes(r.cat.group)))
+          .filter((r) => r.suggested > 0 || (nextBy[r.cat.id] && nextBy[r.cat.id].suggested > 0)).sort((a, b) => b.suggested - a.suggested);
+        if (!rows.length) return '';
+        const sum = rows.reduce((a, r) => a + r.suggested, 0);
+        return '<section class="card c6"><div class="card-h"><h3>' + label + '</h3><span class="muted num" style="font-size:14px">' + fmt(sum) + '</span></div><div class="list">' +
+          rows.map((r) => {
+            const nx = nextBy[r.cat.id] ? nextBy[r.cat.id].suggested : 0, diff = r.suggested - r.current;
+            return '<div class="li plan-li"><span class="cat-ic sm">' + catIcon(r.cat.icon, 15) + '</span><span class="main-t"><div class="t1">' + h(r.cat.name) + '</div><div class="t2">' + h(r.why) + ' · usual ' + fmt(r.avg) + '</div></span>' +
+              '<span class="plan-v"><b class="num">' + fmt(r.suggested) + '</b><small class="num">' + (Math.abs(diff) >= 1 && r.current > 0 ? (diff > 0 ? '▲ ' : '▼ ') + fmt(Math.abs(diff)) + ' vs now · ' : '') + h(Calc.monShort(next)) + ' ' + fmt(nx) + '</small></span></div>';
+          }).join('') + '</div></section>';
+      }).join('');
+      return '<div class="grid">' + head + kpis + lists + '</div>';
+    },
+    mount(view) {
+      const t = view.querySelector('#smart-on');
+      if (t) t.onchange = () => { Store.commit({ op: 'put', t: 'settings', row: { key: 'smartBudgets', value: t.checked ? '1' : '' } }); App.toast(t.checked ? 'Smart budgets on' : 'Smart budgets off'); };
+      view.querySelectorAll('[data-apply]').forEach((b) => (b.onclick = () => {
+        const mk = b.dataset.apply;
+        const L = Smart.learn(Store.state, Store.idx, mk, !!b.dataset.pace);
+        Store.commit({ op: 'put', t: 'months', row: Smart.monthRow(Store.state, mk, Smart.budgetsFor(L)) });
+        App.toast(Calc.monthLabel(mk) + ' budgets set');
+      }));
+    }
+  };
+
+  /* ---------- Tips: ways each person could spend less and save more ---------- */
+  const tipsTab = {
+    render() {
+      const card = (p) => {
+        const T = Smart.tips(Store.state, Store.idx, p), name = p === 1 ? App.name1() : App.name2();
+        return '<section class="card c6"><div class="card-h"><span class="dot" style="background:var(--p' + p + ');width:10px;height:10px"></span><h3>' + h(name) + '</h3>' +
+          (T.potential >= 1 ? '<span class="pill pos">Save ~' + fmt(T.potential) + '/mo</span>' : '') + '</div>' +
+          (T.list.length ? '<div class="tips">' + T.list.map((t) => '<div class="tip ' + t.tone + '"><span class="ti">' + icon(t.icon, 18) + '</span><div class="tb"><b>' + h(t.title) + '</b><p>' + h(t.text) + '</p></div>' +
+            (t.save >= 1 && !t.goal && t.tone !== 'good' ? '<span class="sv num">+' + fmt(t.save) + '</span>' : '') + '</div>').join('') + '</div>'
+            : '<div class="empty">Not enough spending yet to suggest anything. Keep logging and tips will appear here.</div>') + '</section>';
+      };
+      return '<p class="muted" style="margin:-4px 2px 16px;font-size:14px">Based on what each of you paid in the last few months. Savings are estimates per month.</p><div class="grid">' + card(1) + card(2) + '</div>';
+    },
+    mount() {}
+  };
+
   const INS = {
+    plan: planTab,
+    tips: tipsTab,
     pnl: {
       render() {
         const key = App.ui.month, m = App.calc(key);

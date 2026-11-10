@@ -594,6 +594,7 @@
     App.readRoute();
     if (fresh) App.toast('Signed in as ' + App.myFirst());
     else Store.refresh();
+    App.smartAuto();
   };
 
   App.lock = () => { if (Store.pinHash && Store.token) App.lockScreen('unlock'); };
@@ -615,9 +616,28 @@
   Store.onChange((what) => {
     if (what === 'status') { App.renderSync(); if (Store.status === 'auth' && !App.ui.locked) { App.toast('Please sign in again to keep saving'); App.lockScreen('signin'); } return; }
     App.renderSync();
+    App.smartAuto();
     if (!App.ui.locked && document.getElementById('view') && !App._sheets.length) { App.applyTheme(); App.renderNav(); App.renderView(); }
     else if (!App.ui.locked) App._dirty = true;
   });
+
+  /* ---------------- Smart budgets: follow automatically ----------------
+   * When turned on (Insights › Plan), this month's budgets are learned from past spending and kept
+   * up to date. A month whose budgets were edited by hand is left alone. Both phones compute the
+   * same numbers, so they never fight over it. */
+  App.smartOn = () => String(App.S().smartBudgets || '') === '1';
+  let smartTimer = 0;
+  App.smartAuto = () => {
+    clearTimeout(smartTimer);
+    smartTimer = setTimeout(() => {
+      if (App.ui.locked || !App.smartOn() || !Store.hasData || typeof Smart === 'undefined') return;
+      const mk = Calc.currentMk(), md = Store.state.months[mk];
+      if (!Smart.isAuto(md)) return;
+      const b = Smart.budgetsFor(Smart.learn(Store.state, Store.idx, mk, false));
+      if (md && Smart.same(b, md.budgets)) return;
+      Store.commit({ op: 'put', t: 'months', row: Smart.monthRow(Store.state, mk, b) });
+    }, 1200);
+  };
 
   /* ---------------- Start ---------------- */
   App.start = () => {
