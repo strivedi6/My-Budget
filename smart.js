@@ -67,7 +67,18 @@
       const trend = oa > 0 && n >= 4 ? (ra - oa) / oa : 0;
       const regular = n > 0 && paid.length >= Math.max(1, Math.ceil(n * 0.6));
       let raw = 0, why = '', kind = '';
-      if (!paid.length) { raw = 0; kind = 'none'; why = 'No spending yet'; }
+      const plans = C.plannedList(state).filter((p) => p.catId === cat.id);
+      const monthEnd = targetMk + '-' + String(C.daysIn(targetMk)).padStart(2, '0');
+      const dueHere = plans.reduce((acc, p) => acc.concat(C.occurrences(p, monthEnd).filter((d) => d.slice(0, 7) === targetMk).map((d) => ({ d, a: num(p.amount) }))), []);
+      if (plans.length && (dueHere.length || cat.group === 'fixed' || !regular)) {
+        // Planned payments know exactly what falls in this month.
+        raw = dueHere.reduce((a, x) => a + x.a, 0); kind = 'planned';
+        if (dueHere.length) why = 'Planned · due ' + dueHere.map((x) => Number(x.d.slice(8))).join(' & ') + ' ' + C.monShort(targetMk);
+        else {
+          const nx = plans.map((p) => C.occurrences(p, C.addDaysIso(monthEnd, 800)).find((d) => d > monthEnd)).filter(Boolean).sort()[0];
+          why = nx ? 'Planned · next due ' + Number(nx.slice(8)) + ' ' + C.monShort(nx.slice(0, 7)) + ' ' + nx.slice(2, 4) : 'Planned · nothing due';
+        }
+      } else if (!paid.length) { raw = 0; kind = 'none'; why = 'No spending yet'; }
       else if (cat.group === 'fixed' && regular) {
         raw = [...hist].reverse().find((v) => v > 0); kind = 'fixed'; why = 'Fixed bill · latest amount';
       } else if (!regular && paid.length <= Math.ceil(n / 3)) {

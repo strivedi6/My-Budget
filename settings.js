@@ -5,7 +5,7 @@
   const CFG = window.APP_CONFIG || {};
   const GROUPS = [['fixed', 'Fixed', 'Same every month: rent, loans'], ['musthave', 'Must have', 'Needed but varies: groceries, petrol'], ['optional', 'Optional', 'Nice to have: dining, travel, gifts']];
   const ACCENTS = [['blue', '#0088FF'], ['amber', '#FF8D28'], ['emerald', '#34C759'], ['violet', '#6155F5'], ['rose', '#FF2D55'], ['teal', '#00C3D0']];
-  const TONE = { calendar: '--red', tag: '--orange', file: '--blue', palette: '--indigo', lock: '--gray', phone: '--blue', cloud: '--teal', cloudOff: '--orange', layers: '--green', info: '--gray', refresh: '--blue', download: '--green', upload: '--blue', trash: '--red', logout: '--red', sheet: '--green', user: '--gray' };
+  const TONE = { calendar: '--red', clock: '--purple', tag: '--orange', file: '--blue', palette: '--indigo', lock: '--gray', phone: '--blue', cloud: '--teal', cloudOff: '--orange', layers: '--green', info: '--gray', refresh: '--blue', download: '--green', upload: '--blue', trash: '--red', logout: '--red', sheet: '--green', user: '--gray' };
   const tile = (ic, danger) => '<span class="cat-ic sm" style="--c:var(' + (danger ? '--red' : (TONE[ic] || '--accent')) + ')">' + icon(ic, 16) + '</span>';
   const chev = '<svg class="ic chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
   const back = () => '';
@@ -13,8 +13,9 @@
   const btnLi = (attr, ic, label, val, danger) => '<button class="li' + (danger ? ' danger' : '') + '" ' + attr + '>' + tile(ic, danger) + '<span class="main-t"><div class="t1">' + label + '</div></span>' + (val ? '<span class="val">' + val + '</span>' : '') + '</button>';
 
   const PAGES = {};
+  App.settingsPages = PAGES;   // planned.js adds its page here
   App.screens.settings = {
-    title: () => ({ '': 'Settings', profile: 'Profile & Income', month: 'Month Setup', categories: 'Categories', appearance: 'Appearance', security: 'Security', data: 'Backup & Data', sync: 'Sync', install: 'Install App' })[App.ui.sub] || 'Settings',
+    title: () => ({ '': 'Settings', profile: 'Profile & Income', month: 'Month Setup', categories: 'Categories', appearance: 'Appearance', security: 'Security', data: 'Backup & Data', sync: 'Sync', install: 'Install App', planned: 'Planned Payments' })[App.ui.sub] || 'Settings',
     month: () => App.ui.sub === 'month',
     back: () => (App.ui.sub ? '#/settings' : ''),
     render() { return (PAGES[App.ui.sub] || PAGES['']).render(); },
@@ -30,6 +31,7 @@
         '<a class="menu profile-card" href="#/settings/profile" style="text-decoration:none;color:inherit;display:flex"><div class="av">' + App.avatarHtml() + '</div><div style="flex:1;min-width:0"><div style="font-weight:780;font-size:17px">' + h(App.myName()) + '</div><div class="muted" style="font-size:13px">with ' + h(App.otherName()) + ' · ' + h(App.cur) + ' ' + fmt(Calc.num(s.sal1) + Calc.num(s.sal2)) + '/month</div></div>' + icon('right', 18) + '</a>' +
         '<div class="section-title">Money</div><div class="menu">' +
           li('#/settings/month', 'calendar', 'Month setup', h(Calc.monthShort(App.ui.month))) +
+          li('#/settings/planned', 'clock', 'Planned payments', App.plannedBadge ? App.plannedBadge() : '') +
           li('#/settings/categories', 'tag', 'Categories', Store.state.categories.length) +
           btnLi('data-report', 'file', 'Monthly report', '') +
         '</div>' +

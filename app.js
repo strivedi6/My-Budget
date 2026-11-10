@@ -697,8 +697,10 @@
   };
   const top = (o) => Object.keys(o).sort((a, b) => o[b] - o[a])[0];
 
-  App.spendSheet = (existing) => {
-    const isEdit = !!existing;
+  // existing: a spend to edit. opts.draft: treat `existing` as a pre-filled new spend; opts.onSaved(row) runs after saving.
+  App.spendSheet = (existing, opts) => {
+    opts = opts || {};
+    const isEdit = !!existing && !opts.draft;
     const s = existing ? Object.assign({}, existing) : { id: App.uid(), date: Calc.todayIso(), catId: '', merchant: '', paidBy: App.me(), amount: '' };
     const merchants = App.merchantIndex();
     const usage = App.catUsage();
@@ -756,7 +758,7 @@
           if (!s.date) { err.textContent = 'Pick a date'; return; }
           if (!s.catId) { err.textContent = 'Pick a category'; return; }
           const row = { id: s.id, date: s.date, catId: s.catId, merchant: $('#sp-mer').value.trim() || 'Untitled', paidBy: s.paidBy, amount: Math.round(amount * 100) / 100 };
-          Store.commit({ op: 'put', t: 'spends', row });
+          if (opts.onSaved) opts.onSaved(row); else Store.commit({ op: 'put', t: 'spends', row });
           const c = App.cat(row.catId);
           const inOther = row.date.slice(0, 7) !== App.ui.month;
           App.toast((isEdit ? 'Updated' : 'Saved') + ' · ' + App.cur + ' ' + App.fmt2(row.amount) + ' ' + (c ? c.name : '') + (inOther ? ' (' + Calc.monthShort(row.date.slice(0, 7)) + ')' : ''));

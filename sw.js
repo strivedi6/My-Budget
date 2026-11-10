@@ -1,6 +1,6 @@
 /* Service worker: keeps a copy of the app on the device so it opens instantly and works offline.
  * Raise VERSION whenever you upload a new version (match appVersion in config.js). */
-const VERSION = '2.4.0';
+const VERSION = '2.5.0';
 const CACHE = 'mybudget-' + VERSION;
 const SHELL = [
   './',
@@ -14,6 +14,7 @@ const SHELL = [
   './app.js',
   './screens.js',
   './settings.js',
+  './planned.js',
   './motion.js',
   './manifest.webmanifest',
   './vendor/chart.umd.min.js',

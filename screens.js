@@ -3,29 +3,50 @@
   'use strict';
   const { h, fmt, fmt2 } = App;
   window.addEventListener('hashchange', () => App.readRoute());
+  // Budget cards: switch between amount spent and amount left (remembered on this device).
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-bv]'); if (!b) return;
+    App.prefs.budgetView = b.dataset.bv; App.savePrefs(); App.renderView();
+  });
 
   /* Expense rows for a month, biggest first. */
   function expenseRows(m) {
     return Store.state.categories.map((c) => ({ c, v: m.exp[c.id] || 0, a: m.attrib[c.id] || {} })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
   }
+  // How far through the month we are (1 for past months, 0 for future ones).
+  function monthFrac(key) { const cur = Calc.currentMk(); return key < cur ? 1 : key > cur ? 0 : Math.min(1, new Date().getDate() / Calc.daysIn(key)); }
   function budgetRows(key, m) {
+    const frac = monthFrac(key);
     return Store.state.categories.map((c) => {
       const spent = m.agg.total[c.id] || 0;
       const budget = c.kind === 'budgeted' ? Calc.budgetFor(Store.state, c, key) : 0;
-      return { c, spent, budget, nb: c.kind !== 'budgeted' };
+      return { c, spent, budget, nb: c.kind !== 'budgeted', frac };
     });
+  }
+  /* Budget status: on track (green), trending over (orange: within budget so far, but this pace ends over),
+   * over budget (red). Fixed bills are paid in one go, so they are never "trending". */
+  function paceOf(r) {
+    if (r.nb || !r.budget) return { cls: 'acc', end: r.spent };
+    if (r.spent > r.budget) return { cls: 'neg', end: r.spent };
+    const f = r.frac === undefined ? 1 : r.frac;
+    const end = f > 0.12 && f < 1 && r.c.group !== 'fixed' ? r.spent / f : r.spent;
+    return { cls: end > r.budget * 1.03 ? 'warn' : '', end };
   }
   function barClass(spent, budget, nb) { if (nb || !budget) return 'acc'; const p = spent / budget; return p > 1 ? 'neg' : p > 0.85 ? 'warn' : ''; }
   function budgetRowHtml(r) {
-    const p = r.budget > 0 ? Math.min(r.spent / r.budget * 100, 100) : (r.spent > 0 ? 100 : 0);
-    const cls = barClass(r.spent, r.budget, r.nb);
-    const left = r.budget - r.spent;
+    const showLeft = App.prefs.budgetView === 'left';
+    const P = paceOf(r), cls = P.cls, left = r.budget - r.spent;
+    const used = r.budget > 0 ? Math.min(r.spent / r.budget * 100, 100) : (r.spent > 0 ? 100 : 0);
+    const p = showLeft && r.budget > 0 ? Math.max(0, 100 - used) : used;
+    const main = showLeft && r.budget > 0 ? (left >= 0 ? fmt(left) + ' <span>left</span>' : fmt(-left) + ' <span>over</span>') : fmt(r.spent) + (r.budget > 0 ? ' <span>/ ' + fmt(r.budget) + '</span>' : (r.nb ? ' <span>not budgeted</span>' : ''));
+    const note = cls === 'warn' ? '<span class="warn">Trending over · ~' + fmt(P.end) + ' by month end</span>' : (left < 0 ? '<span class="neg">' + fmt(-left) + ' over</span>' : '<span class="muted">' + (showLeft ? fmt(r.spent) + ' spent' : fmt(left) + ' left') + '</span>');
     return '<div class="budget-row"><div class="top"><span class="cat-ic sm">' + catIcon(r.c.icon, 15) + '</span><span class="name">' + h(r.c.name) + '</span>' +
-      '<span class="vals num ' + (cls === 'neg' ? 'neg' : '') + '">' + fmt(r.spent) + (r.budget > 0 ? ' <span>/ ' + fmt(r.budget) + '</span>' : (r.nb ? ' <span>not budgeted</span>' : '')) + '</span></div>' +
+      '<span class="vals num ' + (cls === 'neg' ? 'neg' : '') + '">' + main + '</span></div>' +
       '<div class="bar"><i class="' + cls + '" style="width:' + p + '%"></i></div>' +
-      (r.budget > 0 ? '<div class="between" style="margin-top:5px;font-size:12px;font-weight:650"><span class="muted">' + Math.round(r.spent / r.budget * 100) + '% used</span><span class="' + (left < 0 ? 'neg' : 'muted') + '">' + (left < 0 ? fmt(-left) + ' over' : fmt(left) + ' left') + '</span></div>' : '') +
+      (r.budget > 0 ? '<div class="between" style="margin-top:5px;font-size:12px;font-weight:650"><span class="muted">' + Math.round(r.spent / r.budget * 100) + '% used</span>' + note + '</div>' : '') +
       '</div>';
   }
+  const paceLegend = () => '<div class="pace-legend"><span><i></i>On track</span><span><i class="warn"></i>Trending over</span><span><i class="neg"></i>Over budget</span></div>';
   function donutHtml(id, items, total, label) {
     const pal = App.palette();
     return '<div class="donut-wrap"><div class="chart-box donut"><canvas id="' + id + '"></canvas><div class="donut-center"><div><b class="num">' + fmt(total) + '</b><span>' + h(label) + '</span></div></div></div>' +
@@ -88,16 +109,23 @@
       const bSpent = budgeted.reduce((s, r) => s + r.spent, 0);
       const days = Calc.daysIn(key), dayNow = cur ? new Date().getDate() : (past ? days : 0);
       const left = bTotal - bSpent;
+      const sev = { neg: 3, warn: 2, '': 1, acc: 0 };
       const watch = rows.filter((r) => r.spent > 0 || r.budget > 0).sort((a, b) => {
+        const sa = sev[paceOf(a).cls], sb = sev[paceOf(b).cls];
         const pa = a.budget ? a.spent / a.budget : (a.spent ? 0.5 : 0), pb = b.budget ? b.spent / b.budget : (b.spent ? 0.5 : 0);
-        return pb - pa || b.spent - a.spent;
+        return sb - sa || pb - pa || b.spent - a.spent;
       }).slice(0, 5);
-      const budget = '<section class="card c6"><div class="card-h"><h3>Budget</h3><a class="link" href="#/spends">All categories</a></div>' +
+      // Where the month is heading: everyday budgets at today's pace, fixed bills as they are.
+      const endSpend = budgeted.reduce((s2, r) => s2 + Math.max(paceOf(r).end, r.c.group === 'fixed' ? r.budget : 0), 0);
+      const bv = App.prefs.budgetView === 'left' ? 'left' : 'spent';
+      const budget = '<section class="card c6"><div class="card-h"><h3>Budget</h3><div class="seg mini" id="bud-view"><button data-bv="spent" class="' + (bv === 'spent' ? 'on' : '') + '">Spent</button><button data-bv="left" class="' + (bv === 'left' ? 'on' : '') + '">Left</button></div></div>' +
         (bTotal ? '<div class="between" style="align-items:flex-end;margin-bottom:8px"><div><div class="num" style="font-size:24px;font-weight:800;letter-spacing:-0.02em">' + fmt(bSpent) + ' <span class="muted" style="font-size:14px;font-weight:700">of ' + fmt(bTotal) + '</span></div>' +
           '<div class="sub" style="font-size:13px">' + (left >= 0 ? fmt(left) + ' left' : '<span class="neg">' + fmt(-left) + ' over budget</span>') + (cur && left > 0 ? ' · about ' + fmt(left / Math.max(1, days - dayNow + 1)) + ' a day for ' + (days - dayNow + 1) + ' days' : '') + '</div></div>' +
           '<span class="pill ' + (bSpent > bTotal ? 'neg' : 'acc') + '">' + Math.round(App.pct(bSpent, bTotal)) + '%</span></div>' +
-          '<div class="bar thick" style="margin-bottom:6px"><i class="' + barClass(bSpent, bTotal) + '" style="width:' + Math.min(100, App.pct(bSpent, bTotal)) + '%"></i>' + (cur ? '<i style="left:' + (dayNow / days * 100) + '%;width:2px;background:var(--text);opacity:.35;border-radius:0"></i>' : '') + '</div>' : '<p class="muted">No budgets set. Add them in Settings › Categories.</p>') +
-        watch.map(budgetRowHtml).join('') + '</section>';
+          '<div class="bar thick" style="margin-bottom:6px"><i class="' + barClass(bSpent, bTotal) + '" style="width:' + Math.min(100, App.pct(bSpent, bTotal)) + '%"></i>' + (cur ? '<i style="left:' + (dayNow / days * 100) + '%;width:2px;background:var(--text);opacity:.35;border-radius:0"></i>' : '') + '</div>' +
+          (cur ? '<div class="between end-line"><span class="muted">Expected at month end</span><span class="num ' + (endSpend > bTotal * 1.02 ? 'warn' : 'pos') + '">' + fmt(endSpend) + ' · ' + (endSpend > bTotal ? fmt(endSpend - bTotal) + ' over' : fmt(bTotal - endSpend) + ' to spare') + '</span></div>' : '')
+          : '<p class="muted">No budgets set. Add them in Settings › Categories.</p>') +
+        watch.map(budgetRowHtml).join('') + (bTotal ? paceLegend() : '') + '<a class="link" href="#/spends" style="display:inline-block;margin-top:10px;font-size:14px">All categories</a></section>';
 
       // Where it went
       const items = expenseRows(m).map((x) => ({ name: x.c.name, v: x.v }));
@@ -138,7 +166,9 @@
         '<tr class="total"><td>Total</td><td class="r num">' + fmt(m.totalExp) + '</td><td class="r num">' + fmt(m.p1_total) + '</td><td class="r num">' + fmt(m.p2_total) + '</td></tr>' +
         '</tbody></table></div></section>';
 
-      return '<div class="grid">' + hero + inc + budget + where + trend + rec + whoCard + '</div>';
+      // Planned payments due in the next 30 days sit beside the trend when there are any.
+      const coming = key === Calc.currentMk() && App.comingUpCard ? App.comingUpCard() : '';
+      return '<div class="grid">' + hero + inc + (coming ? coming.replace('card c4', 'card c12 coming') : '') + budget + where + trend + rec + whoCard + '</div>';
     },
     mount(view) {
       const key = App.ui.month, m = App.calc(key);
@@ -264,7 +294,7 @@
       const brows = budgetRows(key, m).filter((r) => r.spent > 0).sort((a, b) => b.spent - a.spent);
       const catItems = Object.entries(byCat).map(([id, v]) => ({ name: (App.cat(id) || { name: 'Unknown' }).name, v })).sort((a, b) => b.v - a.v);
       const side = '<div class="c4" style="display:grid;gap:inherit;align-content:start">' +
-        (f.scope === 'month' ? '<section class="card"><div class="card-h"><h3>Budget vs actual</h3></div>' + (brows.length ? brows.map(budgetRowHtml).join('') : '<div class="empty">Nothing logged yet</div>') + '</section>' : '') +
+        (f.scope === 'month' ? '<section class="card"><div class="card-h"><h3>Budget vs actual</h3><div class="seg mini" id="bud-view2"><button data-bv="spent" class="' + (App.prefs.budgetView !== 'left' ? 'on' : '') + '">Spent</button><button data-bv="left" class="' + (App.prefs.budgetView === 'left' ? 'on' : '') + '">Left</button></div></div>' + (brows.length ? brows.map(budgetRowHtml).join('') + paceLegend() : '<div class="empty">Nothing logged yet</div>') + '</section>' : '') +
         '<section class="card"><div class="card-h"><h3>By category</h3></div>' + (catItems.length ? donutHtml('ch-sp-donut', catItems, total, 'spent') : '<div class="empty">No spends</div>') + '</section></div>';
 
       return toolbar + stats + '<div class="grid">' + listCard + side + '</div>';
@@ -300,7 +330,7 @@
       const seg = '<div class="seg full only-desk" id="itabs" style="margin-bottom:18px">' + ITABS.map((x) => '<button data-i="' + x[0] + '" class="' + (t === x[0] ? 'on' : '') + '">' + x[1] + '</button>').join('') + '</div>' +
         '<div class="pd-row only-mob"><button class="pd-btn glass press" id="ins-pick" aria-haspopup="menu">' + icon(ITAB_FULL[t][1], 17) + '<span>' + ITAB_FULL[t][0] + '</span>' + icon('down', 15) + '</button>' +
         (t === 'compare' ? '<button class="pd-btn plain press" id="cmp-pick" aria-haspopup="menu"><span>' + h((CMP_MODES.find((x) => x[0] === App.ui.cmp.mode) || CMP_MODES[0])[1].replace('…', '')) + '</span>' + icon('down', 15) + '</button>' : '') + '</div>';
-      return seg + INS[t].render();
+      return seg + withQuestions(INS[t].render());
     },
     mount(view) {
       view.querySelectorAll('#itabs [data-i]').forEach((b) => (b.onclick = () => { App.ui.insights = b.dataset.i; App.renderView(); }));
@@ -383,6 +413,36 @@
     mount() {}
   };
 
+  /* ---------- Loans as a share of income ---------- */
+  const LOAN = /loan|mortgage|lease|emi|financ|instal/i;
+  function loansCard(m) {
+    const loans = Store.state.categories.filter((c) => LOAN.test(c.name)).map((c) => ({ c, v: m.exp[c.id] || 0, a: m.attrib[c.id] || {} })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+    if (!loans.length || !m.totalInc) return '';
+    const total = loans.reduce((s2, x) => s2 + x.v, 0), pct = total / m.totalInc * 100;
+    const tone = pct > 40 ? 'neg' : pct > 30 ? 'warn' : 'pos';
+    const R = 34, C = 2 * Math.PI * R, dash = Math.min(1, pct / 100) * C;
+    const mine = (p) => { const inc = p === 1 ? m.sal1 : m.sal2, v = loans.reduce((s2, x) => s2 + ((x.c.type === 'shared' ? (p === 1 ? x.a.resp1 : x.a.resp2) : (p === 1 ? x.a.p1 : x.a.p2)) || 0), 0); return inc ? Math.round(v / inc * 100) : 0; };
+    const max = loans[0].v;
+    return '<section class="card c12"><div class="card-h"><h3>Loans</h3><span class="pill ' + tone + '">' + Math.round(pct) + '% of income</span></div>' +
+      '<p class="card-q">What share of our income goes to loans each month?</p>' +
+      '<div class="loans"><div class="ring ' + tone + '"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="' + R + '" class="rt"/><circle cx="40" cy="40" r="' + R + '" class="rv" stroke-dasharray="' + dash.toFixed(1) + ' ' + C.toFixed(1) + '"/></svg><b class="num">' + Math.round(pct) + '%</b></div>' +
+        '<div class="loans-k"><div><span>Loans this month</span><b class="num">' + fmt(total) + '</b></div><div><span>Total income</span><b class="num">' + fmt(m.totalInc) + '</b></div>' +
+        '<div><span>' + h(App.first1()) + ' · ' + h(App.first2()) + '</span><b class="num">' + mine(1) + '% · ' + mine(2) + '%</b></div></div></div>' +
+      '<div class="loans-l">' + loans.map((x) => '<div class="lr"><div class="between"><span class="row" style="gap:10px"><span class="cat-ic sm">' + catIcon(x.c.icon, 14) + '</span>' + h(x.c.name) + '</span><span class="num">' + fmt(x.v) + '</span></div><div class="bar"><i class="acc" style="width:' + (x.v / max * 100) + '%"></i></div></div>').join('') + '</div>' +
+      '<p class="muted" style="font-size:12.5px;margin:12px 2px 0">A common guide is to keep loan payments under about a third of income.</p></section>';
+  }
+
+  /* A plain question under each Insights card, so it is clear what the card answers. */
+  const QUESTIONS = { 'Savings by month': 'Are we spending less than we make?', 'Growing total': 'How much have we put aside so far this year?',
+    'Category by category': 'Where did our spending change?', 'Year by year': 'In which years did we save more?', 'Who saved what': 'How much did each of us keep?',
+    'month by month': 'How will the year end at this pace?' };
+  function withQuestions(html) {
+    return html.replace(/<h3>([^<]*)<\/h3>/g, (m0, t) => {
+      const k = Object.keys(QUESTIONS).find((q) => t === q || t.endsWith(q));
+      return k ? '<div class="hq"><h3>' + t + '</h3><small>' + QUESTIONS[k] + '</small></div>' : m0;
+    });
+  }
+
   const INS = {
     plan: planTab,
     tips: tipsTab,
@@ -404,7 +464,7 @@
             '<div class="card-h" style="margin:18px 0 6px"><h3 style="font-size:13.5px">' + Calc.parseMk(key).year + '</h3></div>' + App.legendHtml([['Income', App.css('--pos')], ['Expenses', App.css('--neg')]]) +
             '<div class="chart-box"><canvas id="ch-pnl' + p + '"></canvas></div></section>';
         };
-        return '<p class="sub" style="margin:-4px 0 14px;font-size:13.5px">' + h(Calc.monthLabel(App.ui.month)) + '. Each person\'s income against their share of costs: shared costs by income ratio, personal costs in full.</p><div class="grid">' + person(1) + person(2) + '</div>';
+        return '<p class="sub" style="margin:-4px 0 14px;font-size:13.5px">' + h(Calc.monthLabel(App.ui.month)) + '. Each person\'s income against their share of costs: shared costs by income ratio, personal costs in full.</p><div class="grid">' + person(1) + person(2) + loansCard(m) + '</div>';
       },
       mount() {
         const { months } = yearInfo();

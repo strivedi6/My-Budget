@@ -513,6 +513,70 @@ html.is-locked { background: var(--bg); }
 .pd-menu hr { border: 0; height: 8px; margin: 2px 0; background: var(--fill-4); }
 @media (min-width: 1024px) { .only-desk { display: flex !important; } .chips.only-desk { display: flex !important; } .only-mob { display: none !important; } }
 
+/* ---------- Planned payments ---------- */
+[hidden] { display: none !important; }
+.badge-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--red); color: #fff; font-size: 12px; font-weight: 600; }
+.badge-n.static { position: static; display: inline-grid; place-items: center; }
+.card-q { font-size: 13px; color: var(--text-2); margin: -8px 0 10px; letter-spacing: -0.08px; }
+.pp-li .pp-open { text-align: left; min-width: 0; }
+.pp-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.pp-li .pp-r { flex-direction: row; align-items: center; gap: 10px; }
+.pp-row .pp-r .badge-n { margin-bottom: 2px; }
+.pp-when { font-size: 13px; font-weight: 500; }
+.t2.neg, .pp-when.neg, .pp-due.neg { color: var(--red); } .t2.warn, .pp-when.warn, .pp-due.warn { color: var(--warn); } .t2.acc, .pp-when.acc, .pp-due.acc { color: var(--accent); }
+.btn.xs { height: 30px; padding: 0 12px; font-size: 13px; border-radius: 999px; }
+.pp-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 6px 0 4px; }
+.pp-hero .pp-big { width: 76px; height: 76px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--accent); margin-bottom: 8px; box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--accent) 70%, transparent); }
+.pp-hero .pp-big .ic { color: #fff; }
+.pp-hero b { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+.pp-hero .muted { font-size: 14px; }
+.pp-hero .pp-amt { font-size: 24px; font-weight: 600; color: var(--text-2); margin-top: 4px; }
+.pp-occ { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--fill-4); margin-bottom: 10px; }
+.pp-occ b { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+.pp-due { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 500; margin-top: 3px; }
+.pp-acts { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+.pp-acts .btn { height: 38px; }
+.pp-sum { font-size: 14px; color: var(--text-2); margin: 2px 4px 10px; line-height: 1.4; }
+/* iOS wheel picker */
+.wheel { position: relative; display: grid; grid-template-columns: 70px 1fr 1fr; align-items: center; height: 180px; border-radius: 16px; background: var(--fill-4); margin-bottom: 16px; overflow: hidden;
+  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent); }
+.wheel-band { position: absolute; left: 8px; right: 8px; top: 72px; height: 36px; border-radius: 10px; background: var(--fill-3); pointer-events: none; }
+.wheel-l { position: relative; padding-left: 16px; font-size: 17px; color: var(--text-2); }
+.wheel-col { position: relative; height: 180px; overflow-y: auto; scroll-snap-type: y mandatory; padding: 72px 0; scrollbar-width: none; overscroll-behavior: contain; }
+.wheel-col::-webkit-scrollbar { display: none; }
+.wi { height: 36px; display: grid; place-items: center; scroll-snap-align: center; font-size: 20px; color: var(--text-3); transition: color .15s, transform .15s; cursor: pointer; }
+.wi.on { color: var(--text); font-weight: 500; transform: scale(1.06); }
+.date-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px; border-radius: 16px; background: var(--fill-4); }
+.date-grid button { aspect-ratio: 1; max-height: 44px; border-radius: 50%; font-size: 16px; color: var(--text); display: grid; place-items: center; justify-self: center; width: 100%; max-width: 44px; transition: background .2s, color .2s, transform .3s var(--spring); }
+.date-grid button.on { background: var(--accent); color: #fff; font-weight: 600; transform: scale(1.04); }
+.err { color: var(--red); font-size: 14px; text-align: center; min-height: 18px; margin: 6px 0 0; }
+@media (min-width: 1024px) { .coming .list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); column-gap: 28px; } }
+
+/* ---------- Budget pace ---------- */
+.seg.mini { padding: 2px; } .seg.mini button { height: 26px; padding: 0 11px; font-size: 13px; }
+.end-line { font-size: 13px; margin: 2px 0 6px; } .end-line .num { font-weight: 600; }
+.end-line .warn, .budget-row .warn { color: var(--warn); }
+.pace-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 12px; font-size: 12.5px; color: var(--text-2); }
+.pace-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.pace-legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--green); }
+.pace-legend i.warn { background: var(--orange); } .pace-legend i.neg { background: var(--red); }
+
+/* ---------- Insights: questions under card titles, loans ---------- */
+.hq { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.hq small { font-size: 13px; color: var(--text-2); font-weight: 400; letter-spacing: -0.08px; }
+.loans { display: flex; align-items: center; gap: 22px; margin: 4px 0 16px; }
+.ring { position: relative; width: 96px; height: 96px; flex-shrink: 0; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .rt { fill: none; stroke: var(--fill-3); stroke-width: 9; }
+.ring .rv { fill: none; stroke: var(--green); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray .9s var(--ease); }
+.ring.warn .rv { stroke: var(--orange); } .ring.neg .rv { stroke: var(--red); }
+.ring b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; font-weight: 700; }
+.loans-k { display: grid; gap: 8px; flex: 1; min-width: 0; }
+.loans-k div { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.loans-k span { color: var(--text-2); } .loans-k b { font-weight: 600; }
+.loans-l .lr { padding: 8px 0; } .loans-l .lr .between { font-size: 15px; margin-bottom: 6px; }
+@media (min-width: 1024px) { .loans-l { display: grid; grid-template-columns: repeat(2, 1fr); column-gap: 28px; } }
+
 /* ---------- Smart budget (Insights › Plan) ---------- */
 #itabs button { padding-left: 0; padding-right: 0; min-width: 0; flex: 1 1 0; font-size: 13.5px; letter-spacing: -0.3px; }
 .toggle-row { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 16px; background: var(--fill-4); cursor: pointer; }

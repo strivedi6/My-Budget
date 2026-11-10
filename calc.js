@@ -60,6 +60,66 @@
     return { total, byP1, byP2 };
   }
 
+  /* ---------- Planned payments ----------
+   * Saved as JSON in Settings (key "planned"): [{ id, name, catId, amount, paidBy, every, unit, days, start, endType, endCount, endDate, done }]
+   *   unit: 'once' | 'week' | 'month' | 'year'; every: 1..; days: days of the month (unit 'month');
+   *   done: { 'yyyy-mm-dd': 'paid' | 'skip' }. */
+  let _pCache = { raw: null, list: [] };
+  function plannedList(state) {
+    const raw = state.settings && state.settings.planned;
+    if (raw === _pCache.raw) return _pCache.list;
+    let list = [];
+    try { list = Array.isArray(raw) ? raw : raw ? JSON.parse(raw) : []; } catch (e) { list = []; }
+    _pCache = { raw, list: Array.isArray(list) ? list : [] };
+    return _pCache.list;
+  }
+  const isoOf = (y, m0, d) => y + '-' + String(m0 + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  const addDaysIso = (iso, n) => { const [y, m, d] = iso.split('-').map(Number); const t = new Date(y, m - 1, d + n); return isoOf(t.getFullYear(), t.getMonth(), t.getDate()); };
+  // Payment dates of one plan, oldest first, up to `to` (inclusive).
+  function occurrences(p, to) {
+    const out = [], start = String(p.start || ''); if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return out;
+    const every = Math.max(1, num(p.every) || 1), max = p.endType === 'count' ? Math.max(1, num(p.endCount) || 1) : 600;
+    const endD = p.endType === 'date' && p.endDate ? String(p.endDate) : '9999-12-31';
+    const push = (iso) => { if (iso >= start && iso <= to && iso <= endD && out.length < max) out.push(iso); return out.length < max && iso <= to && iso <= endD; };
+    const [sy, sm, sd] = start.split('-').map(Number);
+    if (p.unit === 'once') { push(start); return out; }
+    for (let k = 0, guard = 0; guard < 1200; k++, guard++) {
+      let more = true;
+      if (p.unit === 'week') more = push(addDaysIso(start, k * 7 * every));
+      else if (p.unit === 'year') { const y = sy + k * every; more = push(isoOf(y, sm - 1, Math.min(sd, new Date(y, sm, 0).getDate()))); }
+      else {
+        const t = (sy * 12 + sm - 1) + k * every, y = Math.floor(t / 12), m0 = t % 12, dim = new Date(y, m0 + 1, 0).getDate();
+        const days = (Array.isArray(p.days) && p.days.length ? p.days : [sd]).map(Number).sort((a, b) => a - b);
+        for (const d of days) { more = push(isoOf(y, m0, Math.min(d, dim))); if (!more) break; }
+        if (isoOf(y, m0, 1) > to) more = false;
+      }
+      if (!more) break;
+    }
+    return out;
+  }
+  // A date counts as paid if it was confirmed/skipped, or a matching spend was logged (same category, ±6 days, similar amount).
+  function plannedStatus(state, idx, p, iso) {
+    const d = p.done && p.done[iso]; if (d) return d;
+    const amt = num(p.amount), lo = addDaysIso(iso, -6), hi = addDaysIso(iso, 6);
+    const keys = [lo.slice(0, 7), hi.slice(0, 7)].filter((k, i, a) => a.indexOf(k) === i);
+    for (const k of keys) for (const s of (idx.byMonth[k] || [])) {
+      if (s.catId === p.catId && s.date >= lo && s.date <= hi && (!amt || Math.abs(num(s.amount) - amt) <= Math.max(1, amt * 0.12))) return 'paid';
+    }
+    return '';
+  }
+  // Open (not yet paid) planned amounts per category in a month, for this month onwards.
+  function plannedOpen(state, idx, key) {
+    if (key < currentMk()) return {};
+    const out = {}, to = isoOf(parseMk(key).year, parseMk(key).month, daysIn(key));
+    for (const p of plannedList(state)) {
+      for (const iso of occurrences(p, to)) {
+        if (iso.slice(0, 7) !== key || plannedStatus(state, idx, p, iso)) continue;
+        out[p.catId] = (out[p.catId] || 0) + num(p.amount);
+      }
+    }
+    return out;
+  }
+
   function monthData(state, key) { return state.months[key] || {}; }
 
   function budgetFor(state, cat, key) {
@@ -71,10 +131,11 @@
   function expenses(state, idx, key, agg) {
     const md = monthData(state, key);
     agg = agg || aggregate(state, idx, key);
+    const open = plannedOpen(state, idx, key);
     const out = {};
     for (const cat of state.categories) {
       const acc = md.accruals && md.accruals[cat.id];
-      const daily = agg.total[cat.id] || 0;
+      const daily = (agg.total[cat.id] || 0) + (open[cat.id] || 0);
       if (has(acc)) out[cat.id] = num(acc);
       else if (daily > 0) out[cat.id] = daily;
       else if (md.budgets && has(md.budgets[cat.id])) out[cat.id] = num(md.budgets[cat.id]);
@@ -89,6 +150,7 @@
     const [sh1, sh2] = share(state);
     const agg = aggregate(state, idx, key);
     const exp = expenses(state, idx, key, agg);
+    const open = plannedOpen(state, idx, key);
     const md = monthData(state, key);
     const sal1 = num(has(md.income1) ? md.income1 : state.settings.sal1);
     const sal2 = num(has(md.income2) ? md.income2 : state.settings.sal2);
@@ -100,7 +162,7 @@
     const attrib = {};
     for (const cat of state.categories) {
       const v = exp[cat.id] || 0;
-      const spent = agg.total[cat.id] > 0;
+      const spent = agg.total[cat.id] > 0 && !open[cat.id];
       if (v === 0) { attrib[cat.id] = { p1: 0, p2: 0, resp1: 0, resp2: 0 }; continue; }
       if (cat.type === 'shared') {
         sharedTotal += v;
@@ -134,7 +196,8 @@
 
   const api = {
     MONTHS, MON, num, has, mk, parseMk, addMonths, monthLabel, monthShort, monShort, yearMonths, daysIn,
-    todayIso, currentMk, buildIndex, share, aggregate, expenses, budgetFor, calcMonth
+    todayIso, currentMk, buildIndex, share, aggregate, expenses, budgetFor, calcMonth,
+    plannedList, occurrences, plannedStatus, plannedOpen, addDaysIso
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Calc = api;
