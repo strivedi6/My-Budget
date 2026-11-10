@@ -238,6 +238,7 @@
         '<header class="navbar" id="navbar"></header>' +
         '<main class="content" id="view"></main>' +
       '</div>' +
+      '<div class="tab-fade" aria-hidden="true"></div>' +
       '<div class="tabdock"><nav class="tabbar glass" id="tabbar"></nav>' +
         '<button class="fab glass press" data-add aria-label="Add spend">' + icon('plus', 28) + '</button></div>' +
       // Wide screens (desktop/iPad): a Mac-style sidebar replaces the tab bar.

@@ -166,9 +166,9 @@
       if (v === 0) { attrib[cat.id] = { p1: 0, p2: 0, resp1: 0, resp2: 0 }; continue; }
       if (cat.type === 'shared') {
         sharedTotal += v;
-        const a = spent
-          ? { p1: agg.byP1[cat.id] || 0, p2: agg.byP2[cat.id] || 0, resp1: v * sh1, resp2: v * sh2 }
-          : { p1: v * sh1, p2: v * sh2, resp1: v * sh1, resp2: v * sh2 };
+        // Shared costs are always split by income share, whoever paid; who actually paid is kept in paid1/paid2.
+        const a = { p1: v * sh1, p2: v * sh2, resp1: v * sh1, resp2: v * sh2,
+          paid1: spent ? agg.byP1[cat.id] || 0 : 0, paid2: spent ? agg.byP2[cat.id] || 0 : 0 };
         attrib[cat.id] = a; p1s += a.p1; p2s += a.p2;
       } else if (Number(cat.owner) === 1) {
         p1p += v; attrib[cat.id] = { p1: v, p2: 0, resp1: v, resp2: 0 };

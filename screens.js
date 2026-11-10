@@ -158,7 +158,7 @@
       };
       const whoCard = '<section class="card"><div class="card-h"><h3>Who pays what</h3><div class="seg" id="who-seg">' +
         [['both', 'Both'], ['1', n1], ['2', n2]].map((t) => '<button data-w="' + t[0] + '" class="' + (who === t[0] ? 'on' : '') + '">' + h(t[1]) + '</button>').join('') + '</div></div>' +
-        '<p class="sub" style="margin:-6px 0 6px;font-size:13px">Shared costs are split by income (' + Math.round(m.sh1 * 100) + ' / ' + Math.round(m.sh2 * 100) + '). Where a spend was logged, the person who actually paid is shown.</p>' +
+        '<p class="sub" style="margin:-6px 0 6px;font-size:13px">Shared costs are split by income (' + Math.round(m.sh1 * 100) + ' / ' + Math.round(m.sh2 * 100) + '), whoever paid. Personal costs belong to one person.</p>' +
         phoneWho(shared, 'Shared', pick) + phoneWho(personal, 'Personal', pick) +
         '<div class="li hide-d" style="font-weight:800;border-top:2px solid var(--line)"><span class="main-t"><div class="t1">Total</div><div class="t2"><span style="color:var(--p1)">' + h(n1) + ' ' + fmt(m.p1_total) + '</span> · <span style="color:var(--p2)">' + h(n2) + ' ' + fmt(m.p2_total) + '</span></div></span><span class="amt num">' + fmt(who === '1' ? m.p1_total : who === '2' ? m.p2_total : m.totalExp) + '</span></div>' +
         '<div class="tbl-wrap hide-m"><table class="tbl"><thead><tr><th>Category</th><th class="r">Total</th><th class="r">' + h(n1) + '</th><th class="r">' + h(n2) + '</th></tr></thead><tbody>' +

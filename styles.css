@@ -99,6 +99,11 @@ body.scrolled .navbar .nb-title { opacity: 1; transform: none; }
 .monthsw .lbl.cur { color: var(--accent); }
 
 /* Floating tab bar + action button */
+/* Soft blur behind the tab bar, so it stays clear over whatever scrolls beneath */
+.tab-fade { position: fixed; z-index: 29; left: 0; right: 0; bottom: 0; height: calc(var(--tab-h) + var(--safe-b) + 46px); pointer-events: none;
+  background: linear-gradient(to top, color-mix(in srgb, var(--bg) 80%, transparent) 35%, color-mix(in srgb, var(--bg) 0%, transparent));
+  -webkit-backdrop-filter: blur(14px) saturate(140%); backdrop-filter: blur(14px) saturate(140%);
+  -webkit-mask-image: linear-gradient(to top, #000 55%, transparent); mask-image: linear-gradient(to top, #000 55%, transparent); }
 .tabdock { position: fixed; z-index: 30; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-b) + 8px); width: min(100% - 32px, 688px); display: flex; align-items: center; gap: 12px; pointer-events: none; }
 .tabbar { pointer-events: auto; flex: 1; height: var(--tab-h); border-radius: 999px; padding: 4px; display: grid; grid-template-columns: repeat(4, 1fr); position: relative; }
 .tab { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 10px; font-weight: 600; letter-spacing: .1px; color: var(--text); border-radius: 999px; }
@@ -612,7 +617,7 @@ input.toggle:checked::after { transform: translateX(20px); }
 .sidebar { display: none; }
 @media (min-width: 1024px) {
   :root { --side: 268px; --safe-t: 0px; --safe-b: 0px; --top-gap: 0px; }
-  .tabdock, #aurora { display: none; }
+  .tabdock, #aurora, .tab-fade { display: none; }
 
   .sidebar { display: flex; flex-direction: column; gap: 6px; position: fixed; z-index: 30; top: 12px; bottom: 12px; left: 12px; width: calc(var(--side) - 24px);
     padding: 16px 12px 12px; border-radius: 26px; overflow-y: auto; }
